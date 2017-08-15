@@ -20,7 +20,6 @@ package object model {
     override def write(obj: Gender): JsValue = JsString(obj.toString)
   }
 
-  implicit val userFormat: RootJsonFormat[User] = jsonFormat6(User)
-
-
+  implicit val userFormat: RootJsonFormat[User] = jsonFormat(User.apply,
+    "id", "email", "first_name", "last_name", "gender", "birth_date")
 }
