@@ -29,6 +29,8 @@ dockerfile in docker := {
     add(classpath.files, "/app/")
     // Add the JAR file
     add(jarFile, jarTarget)
+    // Expose HTTP server port
+    expose(80)
     // On launch run Java with the classpath and the main class
     entryPoint("java", "-cp", classpathString, mainclass, "80")
   }
