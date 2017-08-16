@@ -8,6 +8,7 @@ import com.github.evis.highloadcup2017.model.User
 import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 class InitialDataLoader(userDao: UserDao) {
   def load(zipPath: String)(implicit ec: ExecutionContext): Future[Unit] = {
@@ -15,18 +16,20 @@ class InitialDataLoader(userDao: UserDao) {
       File(zipPath).unzip().list.foreach { file =>
         // streaming?
         val string = new String(Files.readAllBytes(file.path))
-        val (entityType, entitiesValue) = string.parseJson.asJsObject.fields.head
-        val entities = entitiesValue match {
-          case JsArray(elements) => elements
-          case other => throw new Exception(s"Bad entities. Expected JsArray, got $other")
+        Try(string.parseJson).foreach { parsed =>
+          val (entityType, entitiesValue) = parsed.asJsObject.fields.head
+          val entities = entitiesValue match {
+            case JsArray(elements) => elements
+            case other => throw new Exception(s"Bad entities. Expected JsArray, got $other")
+          }
+          val saveFun = entityType match {
+            case "users" => saveUsers _
+            case "locations" => saveLocations _
+            case "visits" => saveVisits _
+            case other => throw new Exception(s"Unknown entity type: $other")
+          }
+          saveFun(entities.map(_.asJsObject))
         }
-        val saveFun = entityType match {
-          case "users" => saveUsers _
-          case "locations" => saveLocations _
-          case "visits" => saveVisits _
-          case other => throw new Exception(s"Unknown entity type: $other")
-        }
-        saveFun(entities.map(_.asJsObject))
       }
     }
   }

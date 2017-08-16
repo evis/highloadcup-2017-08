@@ -17,7 +17,7 @@ object Main extends App {
 
   val userDao = new InMemoryUserDao
 
-  new InitialDataLoader(userDao).load("/tmp/data.zip")
+  new InitialDataLoader(userDao).load("/tmp/data/data.zip")
 
   val userApi = new UserApi(userDao)
   val api = new Api(userApi)
