@@ -12,8 +12,7 @@ class UserApi(userDao: UserDao) extends ApiMarshallers {
     pathPrefix("users") {
       path("new") {
         entity(as[User]) { user =>
-          userDao.create(user)
-          complete("{}")
+          complete(userDao.create(user))
         }
       } ~ path(IntNumber) { id =>
         get {
@@ -21,8 +20,7 @@ class UserApi(userDao: UserDao) extends ApiMarshallers {
         } ~ post {
           entity(as[User]) { user =>
             user.copy(id = id)
-            userDao.update(id, user)
-            complete("{}")
+            complete(userDao.update(id, user))
           }
         }
       }
