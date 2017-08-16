@@ -33,3 +33,5 @@ dockerfile in docker := {
     entryPoint("java", "-cp", classpathString, mainclass, "80")
   }
 }
+
+imageNames in docker := Seq(ImageName("stor.highloadcup.ru/travels/ultra_chinook"))
