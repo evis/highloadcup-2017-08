@@ -7,6 +7,10 @@ import com.github.evis.highloadcup2017.api.{Api, UserApi}
 import com.github.evis.highloadcup2017.dao.inmemory.InMemoryUserDao
 
 object Main extends App {
+  if (args.length < 1)
+    throw new Exception("Usage: Main port")
+
+  val port = args(0).toInt
   implicit val system = ActorSystem("http-server")
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
@@ -18,5 +22,5 @@ object Main extends App {
   val userApi = new UserApi(userDao)
   val api = new Api(userApi)
 
-  Http().bindAndHandle(api.route, "localhost", 8080)
+  Http().bindAndHandle(api.route, "localhost", port)
 }

@@ -30,6 +30,6 @@ dockerfile in docker := {
     // Add the JAR file
     add(jarFile, jarTarget)
     // On launch run Java with the classpath and the main class
-    entryPoint("java", "-cp", classpathString, mainclass)
+    entryPoint("java", "-cp", classpathString, mainclass, "80")
   }
 }
