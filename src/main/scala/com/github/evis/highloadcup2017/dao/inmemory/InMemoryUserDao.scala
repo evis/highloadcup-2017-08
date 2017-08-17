@@ -1,5 +1,6 @@
 package com.github.evis.highloadcup2017.dao.inmemory
 
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 import com.github.evis.highloadcup2017.dao.{NotFoundException, UserDao}
@@ -7,7 +8,7 @@ import com.github.evis.highloadcup2017.model.User
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class InMemoryUserDao extends UserDao {
+class InMemoryUserDao(generationInstant: Instant) extends UserDao {
   private val users = new ConcurrentHashMap[Int, User]()
 
   override def create(user: User)(implicit ec: ExecutionContext): Future[Unit] = {

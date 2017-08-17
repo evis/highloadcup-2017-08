@@ -1,5 +1,7 @@
 package com.github.evis.highloadcup2017
 
+import java.time.Instant
+
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -18,6 +20,15 @@ package object model {
     }
 
     override def write(obj: Gender): JsValue = JsString(obj.toString)
+  }
+
+  implicit val instantFormat: JsonFormat[Instant] = new JsonFormat[Instant] {
+    override def read(json: JsValue): Instant = json match {
+      case JsNumber(seconds) => Instant.ofEpochSecond(seconds.toInt)
+      case _ => throw new Exception("Instant should be integer seconds")
+    }
+
+    override def write(instant: Instant): JsValue = JsNumber(instant.getEpochSecond)
   }
 
   implicit val userFormat: RootJsonFormat[User] = jsonFormat(User.apply,

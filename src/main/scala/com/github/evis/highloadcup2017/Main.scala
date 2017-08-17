@@ -1,8 +1,11 @@
 package com.github.evis.highloadcup2017
 
+import java.time.Instant
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import better.files.File
 import com.github.evis.highloadcup2017.api.{Api, UserApi}
 import com.github.evis.highloadcup2017.dao.inmemory.InMemoryUserDao
 
@@ -15,7 +18,9 @@ object Main extends App {
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
-  val userDao = new InMemoryUserDao
+  private val generationInstant = Instant.ofEpochSecond(
+    File("/tmp/data/options.txt").lineIterator.next().toInt)
+  val userDao = new InMemoryUserDao(generationInstant)
 
   new InitialDataLoader(userDao).load("/tmp/data/data.zip")
 
