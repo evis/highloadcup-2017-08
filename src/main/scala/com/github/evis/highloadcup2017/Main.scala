@@ -7,8 +7,8 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import better.files.File
-import com.github.evis.highloadcup2017.api.{Api, UserApi}
-import com.github.evis.highloadcup2017.dao.UserDao
+import com.github.evis.highloadcup2017.api.{Api, LocationApi, UserApi}
+import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao}
 
 object Main extends App {
   if (args.length < 1)
@@ -27,11 +27,13 @@ object Main extends App {
   }
 
   val userDao = new UserDao(generationInstant)
+  val locationDao = new LocationDao(generationInstant)
 
   new InitialDataLoader(userDao).load("/tmp/data/data.zip")
 
   val userApi = new UserApi(userDao)
-  val api = new Api(userApi)
+  val locationApi = new LocationApi(locationDao)
+  val api = new Api(userApi, locationApi)
 
   Http().bindAndHandle(api.route, "0.0.0.0", port)
 }

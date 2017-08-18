@@ -1,9 +1,20 @@
 package com.github.evis.highloadcup2017.dao
 
-import com.github.evis.highloadcup2017.model.Location
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
-import scala.concurrent.Future
+import com.github.evis.highloadcup2017.model.{Location, LocationUpdate}
 
-trait LocationDao {
-  def create(location: Location): Future[Unit]
+class LocationDao(generationInstant: Instant) {
+  private val locations = new ConcurrentHashMap[Int, Location]()
+
+  def create(location: Location): Unit =
+    locations.put(location.id, location)
+
+  def read(id: Int): Option[Location] =
+    Option(locations.get(id))
+
+  //noinspection UnitInMap
+  def update(id: Int, update: LocationUpdate): Option[Unit] =
+    read(id).map(location => locations.put(id, location `with` update))
 }
