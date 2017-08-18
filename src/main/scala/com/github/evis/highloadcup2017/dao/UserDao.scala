@@ -16,5 +16,5 @@ class UserDao(generationInstant: Instant) {
 
   //noinspection UnitInMap
   def update(id: Int, update: UserUpdate): Option[Unit] =
-    Option(users.get(id)).map(_ `with` update)
+    Option(users.get(id)).map(user => users.put(id, user `with` update))
 }
