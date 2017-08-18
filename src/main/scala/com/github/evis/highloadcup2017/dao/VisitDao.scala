@@ -1,9 +1,20 @@
 package com.github.evis.highloadcup2017.dao
 
-import com.github.evis.highloadcup2017.model.Visit
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
-import scala.concurrent.Future
+import com.github.evis.highloadcup2017.model.{Visit, VisitUpdate}
 
-trait VisitDao {
-  def create(visit: Visit): Future[Unit]
+class VisitDao(generationInstant: Instant) {
+  private val visits = new ConcurrentHashMap[Int, Visit]()
+
+  def create(visit: Visit): Unit =
+    visits.put(visit.id, visit)
+
+  def read(id: Int): Option[Visit] =
+    Option(visits.get(id))
+
+  //noinspection UnitInMap
+  def update(id: Int, update: VisitUpdate): Option[Unit] =
+    read(id).map(visit => visits.put(id, visit `with` update))
 }

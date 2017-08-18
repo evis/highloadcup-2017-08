@@ -40,4 +40,10 @@ package object model {
   implicit val locationFormat: RootJsonFormat[Location] = jsonFormat5(Location)
 
   implicit val locationUpdateFormat: RootJsonFormat[LocationUpdate] = jsonFormat4(LocationUpdate)
+
+  implicit val visitFormat: RootJsonFormat[Visit] = jsonFormat(Visit.apply,
+    "id", "location", "user", "visited_at", "mark")
+
+  implicit val visitUpdateFormat: RootJsonFormat[VisitUpdate] = jsonFormat(VisitUpdate.apply,
+    "location", "user", "visited_at", "mark")
 }

@@ -5,8 +5,8 @@ import akka.http.scaladsl.server.Route
 
 import scala.concurrent.ExecutionContext
 
-class Api(userApi: UserApi, locationApi: LocationApi) {
+class Api(userApi: UserApi, locationApi: LocationApi, visitApi: VisitApi) {
   def route(implicit ec: ExecutionContext): Route = rejectEmptyResponse {
-    userApi.route ~ locationApi.route
+    userApi.route ~ locationApi.route ~ visitApi.route
   }
 }
