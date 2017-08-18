@@ -8,21 +8,22 @@ import com.github.evis.highloadcup2017.model._
 import scala.concurrent.ExecutionContext
 
 class UserApi(userDao: UserDao) extends ApiMarshallers {
-  def route(implicit ec: ExecutionContext): Route = {
-    pathPrefix("users") {
-      path("new") {
-        entity(as[User]) { user =>
-          complete(userDao.create(user))
-        }
-      } ~ path(IntNumber) { id =>
-        get {
-          complete(userDao.read(id))
-        } ~ post {
-          entity(as[UserUpdate]) { update =>
-            complete(userDao.update(id, update))
+  def route(implicit ec: ExecutionContext): Route =
+    rejectEmptyResponse {
+      pathPrefix("users") {
+        path("new") {
+          entity(as[User]) { user =>
+            complete(userDao.create(user))
+          }
+        } ~ path(IntNumber) { id =>
+          get {
+            complete(userDao.read(id))
+          } ~ post {
+            entity(as[UserUpdate]) { update =>
+              complete(userDao.update(id, update))
+            }
           }
         }
       }
     }
-  }
 }
