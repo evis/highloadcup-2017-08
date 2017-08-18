@@ -7,19 +7,17 @@ import com.github.evis.highloadcup2017.model._
 
 class UserApi(userDao: UserDao) extends ApiMarshallers {
   val route: Route =
-    rejectEmptyResponse {
-      pathPrefix("users") {
-        path("new") {
-          entity(as[User]) { user =>
-            complete(userDao.create(user))
-          }
-        } ~ path(IntNumber) { id =>
-          get {
-            complete(userDao.read(id))
-          } ~ post {
-            entity(as[UserUpdate]) { update =>
-              complete(userDao.update(id, update))
-            }
+    pathPrefix("users") {
+      path("new") {
+        entity(as[User]) { user =>
+          complete(userDao.create(user))
+        }
+      } ~ path(IntNumber) { id =>
+        get {
+          complete(userDao.read(id))
+        } ~ post {
+          entity(as[UserUpdate]) { update =>
+            complete(userDao.update(id, update))
           }
         }
       }

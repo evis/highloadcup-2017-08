@@ -1,10 +1,12 @@
 package com.github.evis.highloadcup2017.api
 
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 
 import scala.concurrent.ExecutionContext
 
 class Api(userApi: UserApi) {
-  def route(implicit ec: ExecutionContext): Route =
+  def route(implicit ec: ExecutionContext): Route = rejectEmptyResponse {
     userApi.route
+  }
 }
