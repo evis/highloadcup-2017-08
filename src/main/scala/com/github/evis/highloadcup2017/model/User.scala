@@ -9,15 +9,13 @@ case class User(id: Int,
                 gender: Gender,
                 birthDate: Instant) {
 
-  def `with`(update: UserUpdate): User = {
-    copy(
-      email = update.email.getOrElse(email),
-      firstName = update.firstName.getOrElse(firstName),
-      lastName = update.lastName.getOrElse(lastName),
-      gender = update.gender.getOrElse(gender),
-      birthDate = update.birthDate.getOrElse(birthDate)
-    )
-  }
+  def `with`(update: UserUpdate): User = copy(
+    email = update.email.getOrElse(email),
+    firstName = update.firstName.getOrElse(firstName),
+    lastName = update.lastName.getOrElse(lastName),
+    gender = update.gender.getOrElse(gender),
+    birthDate = update.birthDate.getOrElse(birthDate)
+  )
 }
 
 case class UserUpdate(email: Option[String],
