@@ -5,10 +5,8 @@ import akka.http.scaladsl.server.Route
 import com.github.evis.highloadcup2017.dao.UserDao
 import com.github.evis.highloadcup2017.model._
 
-import scala.concurrent.ExecutionContext
-
 class UserApi(userDao: UserDao) extends ApiMarshallers {
-  def route(implicit ec: ExecutionContext): Route =
+  val route: Route =
     rejectEmptyResponse {
       pathPrefix("users") {
         path("new") {
