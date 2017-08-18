@@ -26,9 +26,8 @@ class InitialDataLoader(userDao: UserDao) {
       saveFun(entities.map(_.asJsObject))
     }
 
-  private def saveUsers(jsons: Seq[JsObject]) {
+  private def saveUsers(jsons: Seq[JsObject]) =
     jsons.foreach(json => userDao.create(json.convertTo[User]))
-  }
 
   private def saveLocations(jsons: Seq[JsObject]) {}
 
