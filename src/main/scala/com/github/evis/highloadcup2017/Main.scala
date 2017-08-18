@@ -8,7 +8,7 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import better.files.File
 import com.github.evis.highloadcup2017.api.{Api, UserApi}
-import com.github.evis.highloadcup2017.dao.inmemory.InMemoryUserDao
+import com.github.evis.highloadcup2017.dao.UserDao
 
 object Main extends App {
   if (args.length < 1)
@@ -26,7 +26,7 @@ object Main extends App {
     case _: NoSuchFileException => Instant.now()
   }
 
-  val userDao = new InMemoryUserDao(generationInstant)
+  val userDao = new UserDao(generationInstant)
 
   new InitialDataLoader(userDao).load("/tmp/data/data.zip")
 
