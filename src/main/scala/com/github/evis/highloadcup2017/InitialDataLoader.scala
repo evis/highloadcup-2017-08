@@ -3,11 +3,11 @@ package com.github.evis.highloadcup2017
 import java.nio.file.Files
 
 import better.files._
-import com.github.evis.highloadcup2017.dao.UserDao
-import com.github.evis.highloadcup2017.model.User
+import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
+import com.github.evis.highloadcup2017.model.{Location, User, Visit}
 import spray.json._
 
-class InitialDataLoader(userDao: UserDao) {
+class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) {
   def load(zipPath: String): Unit =
     File(zipPath).unzip().list.foreach { file =>
       // streaming?
@@ -29,7 +29,9 @@ class InitialDataLoader(userDao: UserDao) {
   private def saveUsers(jsons: Seq[JsObject]) =
     jsons.foreach(json => userDao.create(json.convertTo[User]))
 
-  private def saveLocations(jsons: Seq[JsObject]) {}
+  private def saveLocations(jsons: Seq[JsObject]) =
+    jsons.foreach(json => locationDao.create(json.convertTo[Location]))
 
-  private def saveVisits(jsons: Seq[JsObject]) {}
+  private def saveVisits(jsons: Seq[JsObject]) =
+    jsons.foreach(json => visitDao.create(json.convertTo[Visit]))
 }
