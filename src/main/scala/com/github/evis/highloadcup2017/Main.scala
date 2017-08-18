@@ -1,5 +1,6 @@
 package com.github.evis.highloadcup2017
 
+import java.nio.file.NoSuchFileException
 import java.time.Instant
 
 import akka.actor.ActorSystem
@@ -18,8 +19,13 @@ object Main extends App {
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
-  private val generationInstant = Instant.ofEpochSecond(
-    File("/tmp/data/options.txt").lineIterator.next().toInt)
+  val generationInstant = try {
+    Instant.ofEpochSecond(
+      File("/tmp/data/options.txt").lineIterator.next().toInt)
+  } catch {
+    case _: NoSuchFileException => Instant.now()
+  }
+
   val userDao = new InMemoryUserDao(generationInstant)
 
   new InitialDataLoader(userDao).load("/tmp/data/data.zip")
@@ -27,5 +33,5 @@ object Main extends App {
   val userApi = new UserApi(userDao)
   val api = new Api(userApi)
 
-  Http().bindAndHandle(api.route, "localhost", port)
+  Http().bindAndHandle(api.route, "0.0.0.0", port)
 }
