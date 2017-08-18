@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 import com.github.evis.highloadcup2017.dao.{NotFoundException, UserDao}
-import com.github.evis.highloadcup2017.model.User
+import com.github.evis.highloadcup2017.model.{User, UserUpdate}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -23,12 +23,12 @@ class InMemoryUserDao(generationInstant: Instant) extends UserDao {
     }
   }
 
-  override def update(id: Int, user: User)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def update(id: Int, update: UserUpdate)(implicit ec: ExecutionContext): Future[Unit] = {
     users.get(id) match {
       case null =>
         notFound(id)
-      case _ =>
-        users.put(id, user)
+      case user =>
+        users.put(id, user `with` update)
         Future.successful()
     }
   }

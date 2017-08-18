@@ -18,9 +18,8 @@ class UserApi(userDao: UserDao) extends ApiMarshallers {
         get {
           complete(userDao.read(id))
         } ~ post {
-          entity(as[User]) { user =>
-            user.copy(id = id)
-            complete(userDao.update(id, user))
+          entity(as[UserUpdate]) { update =>
+            complete(userDao.update(id, update))
           }
         }
       }

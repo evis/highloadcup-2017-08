@@ -33,4 +33,7 @@ package object model {
 
   implicit val userFormat: RootJsonFormat[User] = jsonFormat(User.apply,
     "id", "email", "first_name", "last_name", "gender", "birth_date")
+
+  implicit val userUpdateFormat: RootJsonFormat[UserUpdate] = jsonFormat(UserUpdate.apply,
+    "email", "first_name", "last_name", "gender", "birth_date")
 }
