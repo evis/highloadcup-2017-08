@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import com.github.evis.highloadcup2017.dao.VisitDao
 import com.github.evis.highloadcup2017.model.{Visit, VisitUpdate}
 
-class VisitApi(visitDao: VisitDao) extends ApiMarshallers {
+class VisitApi(visitDao: VisitDao) extends ApiBase {
   val route: Route =
     pathPrefix("visits") {
       path("new") {

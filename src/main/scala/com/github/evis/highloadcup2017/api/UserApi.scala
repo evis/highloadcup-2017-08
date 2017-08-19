@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import com.github.evis.highloadcup2017.dao.{UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model._
 
-class UserApi(userDao: UserDao, visitDao: VisitDao) extends ApiMarshallers {
+class UserApi(userDao: UserDao, visitDao: VisitDao) extends ApiBase {
   val route: Route =
     pathPrefix("users") {
       path("new") {
