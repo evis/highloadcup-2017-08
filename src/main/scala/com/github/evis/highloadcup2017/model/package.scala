@@ -5,6 +5,8 @@ import java.time.Instant
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import scala.language.implicitConversions
+
 package object model {
   type Gender = GenderEnum.Value
 
@@ -75,6 +77,22 @@ package object model {
       )
     }
   }
+
+  implicit val userVisitFormat: RootJsonFormat[UserVisit] = new RootJsonFormat[UserVisit] {
+    override def write(userVisit: UserVisit): JsValue = JsObject(
+      "mark" -> JsNumber(userVisit.mark),
+      "visited_at" -> JsNumber(userVisit.visitedAt.getEpochSecond),
+      "place" -> JsString(userVisit.place)
+    )
+
+    override def read(json: JsValue): UserVisit = ???
+  }
+
+  implicit val userVisitsFormat: RootJsonWriter[UserVisits] = jsonFormat1(UserVisits)
+
+  implicit def instantToUserVisit(instant: Instant): UserVisit = UserVisit(
+    -1, instant, null, null, -1
+  )
 
   private def getField[T: JsonReader](name: String)(implicit fields: Map[String, JsValue]) = fields.get(name) match {
     case Some(JsNull) => deserializationError("null is forbidden")

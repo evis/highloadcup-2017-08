@@ -28,11 +28,11 @@ object Main extends App {
 
   val userDao = new UserDao(generationInstant)
   val locationDao = new LocationDao(generationInstant)
-  val visitDao = new VisitDao(generationInstant)
+  val visitDao = new VisitDao(locationDao, generationInstant)
 
   new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
-  val userApi = new UserApi(userDao)
+  val userApi = new UserApi(userDao, visitDao)
   val locationApi = new LocationApi(locationDao)
   val visitApi = new VisitApi(visitDao)
   val api = new Api(userApi, locationApi, visitApi)
