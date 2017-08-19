@@ -60,13 +60,14 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
     }
   }
 
-  def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
-    userVisits.get(request.user).map(
-      _.rangeImpl(request.fromDate, request.toDate) // to is inclusive! need to be exclusive =(
-        .filter(userVisit =>
-        request.toDistance.fold(true)(_ > userVisit.distance) &&
-          request.country.fold(true)(_ == userVisit.country)
-      ).toSeq)
-      .map(UserVisits)
+  def userVisits(request: UserVisitsRequest): UserVisits = {
+    UserVisits(
+      userVisits.get(request.user).fold(Seq[UserVisit]())(
+        _.rangeImpl(request.fromDate, request.toDate) // to is inclusive! need to be exclusive =(
+          .filter(userVisit =>
+          request.toDistance.fold(true)(_ > userVisit.distance) &&
+            request.country.fold(true)(_ == userVisit.country)
+        ).toSeq)
+    )
   }
 }
