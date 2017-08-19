@@ -65,6 +65,17 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
         case _ =>
           oldUserVisits
       }) += (oldUserVisit `with` update)
+      val oldLocationId = visit.location
+      val oldLocationVisits = locationVisits(oldLocationId)
+      val oldLocationVisit = oldLocationVisits.find(_.visitId == id).getOrElse(
+        throw new RuntimeException(s"Unable to find user visit ${visit.id} for user ${visit.user}"))
+      oldLocationVisits.remove(oldLocationVisit)
+      (update.location match {
+        case Some(newLocationId) if newLocationId != oldLocationId =>
+          locationVisits.getOrElseUpdate(newLocationId, mutable.SortedSet())
+        case _ =>
+          oldLocationVisits
+      }) += (oldLocationVisit `with` update)
       visits += id -> (visit `with` update)
     }
 

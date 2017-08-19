@@ -18,6 +18,11 @@ case class LocationVisit(userId: Int,
       ).getOrElse(age),
     gender = update.gender.getOrElse(gender)
   )
+
+  def `with`(update: VisitUpdate): LocationVisit = copy(
+    mark = update.mark.getOrElse(mark),
+    visitedAt = update.visitedAt.getOrElse(visitedAt)
+  )
 }
 
 case class LocationAvgRequest(location: Int,
