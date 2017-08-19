@@ -78,6 +78,16 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
     }
   }
 
+  def updateUser(userId: Int, update: UserUpdate): Unit = {
+    // need one more index to do it faster?
+    locationVisits.values.foreach { visits =>
+      val toUpdate = visits.filter(_.userId == userId)
+      visits --= toUpdate
+      val seq = toUpdate.toSeq
+      visits ++= seq.map(_.`with`(update, generationInstant))
+    }
+  }
+
   def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     userDao.read(request.user).map { _ =>
       val optVisits = userVisits.get(request.user)
