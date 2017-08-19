@@ -94,6 +94,9 @@ package object model {
     -1, instant, null, null, -1
   )
 
+  implicit val userVisitOrdering: Ordering[UserVisit] =
+    Ordering.by(_.visitedAt)
+
   private def getField[T: JsonReader](name: String)(implicit fields: Map[String, JsValue]) = fields.get(name) match {
     case Some(JsNull) => deserializationError("null is forbidden")
     case Some(x) => Some(x.convertTo[T])

@@ -57,7 +57,7 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       filteredByDate.asScala.filter(userVisit =>
         request.toDistance.fold(true)(_ > userVisit.distance) &&
           request.country.fold(true)(_ == userVisit.country)
-      )
+      ).toSeq
     )
   }
 }
