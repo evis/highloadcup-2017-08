@@ -9,7 +9,7 @@ import spray.json._
 
 class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) {
   def load(zipPath: String): Unit =
-    File(zipPath).unzip().list.foreach { file =>
+    File(zipPath).unzip().list.toSeq.sortBy(_.name).foreach { file =>
       // streaming?
       val string = new String(Files.readAllBytes(file.path))
       val (entityType, entitiesValue) = string.parseJson.asJsObject.fields.head
