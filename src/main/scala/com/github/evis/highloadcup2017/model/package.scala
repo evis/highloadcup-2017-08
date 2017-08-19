@@ -15,7 +15,7 @@ package object model {
   val Male: Gender = GenderEnum.Male
   val Female: Gender = GenderEnum.Female
 
-  implicit val genderFormat: JsonFormat[Gender] = new JsonFormat[Gender] {
+  implicit val genderFormat: RootJsonFormat[Gender] = new RootJsonFormat[Gender] {
     override def read(json: JsValue): Gender = json match {
       case JsString(s) => toGender(s)
       case _ => throw new Exception("Gender should be JsString")
@@ -93,8 +93,16 @@ package object model {
   implicit def instantToUserVisit(instant: Option[Instant]): Option[UserVisit] =
     instant.map(UserVisit(-1, -1, -1, _, null, null, -1))
 
+  implicit def instantToLocationVisit(instant: Option[Instant]): Option[LocationVisit] =
+    instant.map(LocationVisit(-1, -1, -1, _, -1, null))
+
   implicit val userVisitOrdering: Ordering[UserVisit] =
     Ordering.by(_.visitedAt)
+
+  implicit val locationVisitOrdering: Ordering[LocationVisit] =
+    Ordering.by(_.visitedAt)
+
+  implicit val locationAvgResponseFormat: RootJsonWriter[LocationAvgResponse] = jsonFormat1(LocationAvgResponse)
 
   private def getField[T: JsonReader](name: String)(implicit fields: Map[String, JsValue]) = fields.get(name) match {
     case Some(JsNull) => deserializationError("null is forbidden")

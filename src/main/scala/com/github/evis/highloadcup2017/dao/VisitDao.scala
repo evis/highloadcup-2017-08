@@ -1,18 +1,22 @@
 package com.github.evis.highloadcup2017.dao
 
-import java.time.Instant
+import java.time._
+import java.time.temporal.ChronoUnit.YEARS
 
 import com.github.evis.highloadcup2017.model._
 
 import scala.collection.mutable
+import scala.math.BigDecimal.RoundingMode.HALF_UP
 
-class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
+class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: Instant) {
   private val visits = mutable.HashMap[Int, Visit]()
   // here int is user id
   private val userVisits = mutable.HashMap[Int, mutable.SortedSet[UserVisit]]()
+  // and here int is location id
+  private val locationVisits = new mutable.HashMap[Int, mutable.SortedSet[LocationVisit]]()
 
   def create(visit: Visit): Unit = {
-    // should put visit if location not found?
+    // should put visit if location or user not found?
     visits += visit.id -> visit
     locationDao.read(visit.location) match {
       case Some(location) =>
@@ -28,6 +32,20 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       case None =>
         // handle it with exception handler?
         throw new Exception(s"Location ${visit.location} not found")
+    }
+    userDao.read(visit.user).foreach { user =>
+      locationVisits.getOrElseUpdate(visit.location, mutable.SortedSet()) += LocationVisit(
+        visit.user,
+        visit.id,
+        visit.mark,
+        visit.visitedAt,
+        // switch to datetimes everywhere?
+        user.birthDate.atZone(ZoneId.systemDefault()).until(
+          generationInstant.atZone(ZoneId.systemDefault()),
+          YEARS
+        ).toInt,
+        user.gender
+      )
     }
   }
 
@@ -69,5 +87,20 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
             request.country.fold(true)(_ == userVisit.country)
         ).toSeq)
     )
+  }
+
+  def locationAvg(request: LocationAvgRequest): Option[LocationAvgResponse] = {
+    locationVisits.get(request.location).map { visits =>
+      val found = visits.rangeImpl(request.fromDate, request.toDate) // again bad inclusive
+        .filter(visit =>
+        request.fromAge.fold(true)(_ < visit.age) &&
+          request.toAge.fold(true)(_ > visit.age) &&
+          request.gender.fold(true)(_ == visit.gender))
+      val count = found.size
+      val avg =
+        if (count == 0) 0
+        else found.foldLeft(0.0)((acc, visit) => acc + visit.mark) / count
+      LocationAvgResponse(BigDecimal(avg).setScale(5, HALF_UP).toDouble)
+    }
   }
 }
