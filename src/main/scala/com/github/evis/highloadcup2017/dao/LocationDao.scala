@@ -23,5 +23,6 @@ class LocationDao(generationInstant: Instant) {
   }
 
   def setVisitDao(visitDao: VisitDao): Unit =
-    if (this.visitDao != null) this.visitDao = visitDao
+    if (this.visitDao == null) this.visitDao = visitDao
+    else throw new RuntimeException("setVisitDao() should be invoked once")
 }
