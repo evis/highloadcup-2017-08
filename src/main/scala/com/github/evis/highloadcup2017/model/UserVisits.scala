@@ -4,11 +4,18 @@ import java.time.Instant
 
 case class UserVisits(visits: Iterable[UserVisit])
 
-case class UserVisit(mark: Int,
+case class UserVisit(visitId: Int,
+                     mark: Int,
                      visitedAt: Instant,
                      place: String,
                      country: String,
-                     distance: Int)
+                     distance: Int) {
+
+  def `with`(update: VisitUpdate): UserVisit = copy(
+    mark = update.mark.getOrElse(mark),
+    visitedAt = update.visitedAt.getOrElse(visitedAt),
+  )
+}
 
 case class UserVisitsRequest(user: Int,
                              fromDate: Option[Instant],

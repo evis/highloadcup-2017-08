@@ -17,6 +17,7 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
     locationDao.read(visit.location) match {
       case Some(location) =>
         userVisits.getOrElseUpdate(visit.user, mutable.SortedSet()) += UserVisit(
+          visit.id,
           visit.mark,
           visit.visitedAt,
           location.place,
@@ -33,7 +34,20 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
 
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Option[Unit] =
-    read(id).map(visit => visits += id -> (visit `with` update))
+    read(id).map { visit =>
+      val oldUserId = visit.user
+      val oldUserVisits = userVisits(oldUserId)
+      val oldUserVisit = oldUserVisits.find(_.visitId == id).getOrElse(
+        throw new RuntimeException(s"Unable to find user visit ${visit.id} for user ${visit.user}"))
+      oldUserVisits.remove(oldUserVisit)
+      (update.user match {
+        case Some(newUserId) if newUserId != oldUserId =>
+          userVisits.getOrElseUpdate(newUserId, mutable.SortedSet())
+        case _ =>
+          oldUserVisits
+      }) += (oldUserVisit `with` update)
+      visits += id -> (visit `with` update)
+    }
 
   def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     userVisits.get(request.user).map(
