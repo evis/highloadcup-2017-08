@@ -33,7 +33,12 @@ dockerfile in docker := {
     // Expose HTTP server port
     expose(80)
     // On launch run Java with the classpath and the main class
-    entryPoint("java", "-cp", classpathString, mainclass, "80")
+    entryPoint("java",
+      "-XX:+UseConcMarkSweepGC",
+      "-XX:+CMSIncrementalMode",
+      "-Xms4g",
+      "-Xmx4g",
+      "-cp", classpathString, mainclass, "80")
   }
 }
 
