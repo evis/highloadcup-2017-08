@@ -24,7 +24,7 @@ package object model {
     override def write(obj: Gender): JsValue = JsString(obj.toString)
   }
 
-  implicit val instantFormat: JsonFormat[Instant] = new JsonFormat[Instant] {
+  implicit val instantFormat: RootJsonFormat[Instant] = new RootJsonFormat[Instant] {
     override def read(json: JsValue): Instant = json match {
       case JsNumber(seconds) => Instant.ofEpochSecond(seconds.toInt)
       case _ => throw new Exception("Instant should be integer seconds")

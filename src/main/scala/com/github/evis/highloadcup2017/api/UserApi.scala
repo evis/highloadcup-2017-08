@@ -23,16 +23,17 @@ class UserApi(userDao: UserDao, visitDao: VisitDao) extends ApiBase {
           }
         }
       } ~ path(IntNumber / "visits") { id =>
-        parameterMap { params =>
-          complete {
-            visitDao.userVisits(UserVisitsRequest(
-              user = id,
-              params.get("fromDate").map(s => Instant.ofEpochSecond(s.toInt)),
-              params.get("toDate").map(s => Instant.ofEpochSecond(s.toInt)),
-              params.get("country"),
-              params.get("toDistance").map(_.toInt)
-            ))
-          }
+        parameters("fromDate".as[Instant].?, "toDate".as[Instant].?, "country".?, "toDistance".as[Int].?) {
+          (fromDate, toDate, country, toDistance) =>
+            complete {
+              visitDao.userVisits(UserVisitsRequest(
+                user = id,
+                fromDate,
+                toDate,
+                country,
+                toDistance,
+              ))
+            }
         }
       }
     }
