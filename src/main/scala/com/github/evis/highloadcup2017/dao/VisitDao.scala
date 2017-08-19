@@ -56,7 +56,6 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
         request.toDistance.fold(true)(_ > userVisit.distance) &&
           request.country.fold(true)(_ == userVisit.country)
       ).toSeq)
-      .filter(_.nonEmpty)
       .map(UserVisits)
   }
 }
