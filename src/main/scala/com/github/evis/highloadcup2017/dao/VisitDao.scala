@@ -18,6 +18,7 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       case Some(location) =>
         userVisits.getOrElseUpdate(visit.user, mutable.SortedSet()) += UserVisit(
           visit.id,
+          visit.location,
           visit.mark,
           visit.visitedAt,
           location.place,
@@ -48,6 +49,16 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       }) += (oldUserVisit `with` update)
       visits += id -> (visit `with` update)
     }
+
+  def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
+    // need one more index to do it faster?
+    userVisits.values.foreach { visits =>
+      val toUpdate = visits.filter(_.locationId == locationId)
+      visits --= toUpdate
+      val seq = toUpdate.toSeq
+      visits ++= seq.map(_ `with` update)
+    }
+  }
 
   def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     userVisits.get(request.user).map(

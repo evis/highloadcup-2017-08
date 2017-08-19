@@ -5,6 +5,7 @@ import java.time.Instant
 case class UserVisits(visits: Iterable[UserVisit])
 
 case class UserVisit(visitId: Int,
+                     locationId: Int,
                      mark: Int,
                      visitedAt: Instant,
                      place: String,
@@ -14,6 +15,12 @@ case class UserVisit(visitId: Int,
   def `with`(update: VisitUpdate): UserVisit = copy(
     mark = update.mark.getOrElse(mark),
     visitedAt = update.visitedAt.getOrElse(visitedAt),
+  )
+
+  def `with`(update: LocationUpdate): UserVisit = copy(
+    place = update.place.getOrElse(place),
+    country = update.country.getOrElse(country),
+    distance = update.distance.getOrElse(distance)
   )
 }
 

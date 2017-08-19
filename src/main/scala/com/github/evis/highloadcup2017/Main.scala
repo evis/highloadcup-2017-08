@@ -29,6 +29,7 @@ object Main extends App {
   val userDao = new UserDao(generationInstant)
   val locationDao = new LocationDao(generationInstant)
   val visitDao = new VisitDao(locationDao, generationInstant)
+  locationDao.setVisitDao(visitDao)
 
   new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
