@@ -34,16 +34,51 @@ package object model {
   implicit val userFormat: RootJsonFormat[User] = jsonFormat(User.apply,
     "id", "email", "first_name", "last_name", "gender", "birth_date")
 
-  implicit val userUpdateFormat: RootJsonFormat[UserUpdate] = jsonFormat(UserUpdate.apply,
-    "email", "first_name", "last_name", "gender", "birth_date")
+  implicit val userUpdateFormat: RootJsonReader[UserUpdate] = new RootJsonReader[UserUpdate] {
+    override def read(json: JsValue): UserUpdate = {
+      implicit val fields = json.asJsObject.fields
+      UserUpdate(
+        getField[String]("email"),
+        getField[String]("first_name"),
+        getField[String]("last_name"),
+        getField[Gender]("gender"),
+        getField[Instant]("birth_date")
+      )
+    }
+  }
 
   implicit val locationFormat: RootJsonFormat[Location] = jsonFormat5(Location)
 
-  implicit val locationUpdateFormat: RootJsonFormat[LocationUpdate] = jsonFormat4(LocationUpdate)
+  implicit val locationUpdateFormat: RootJsonReader[LocationUpdate] = new RootJsonReader[LocationUpdate] {
+    override def read(json: JsValue): LocationUpdate = {
+      implicit val fields = json.asJsObject.fields
+      LocationUpdate(
+        getField[String]("place"),
+        getField[String]("country"),
+        getField[String]("city"),
+        getField[Int]("distance")
+      )
+    }
+  }
 
   implicit val visitFormat: RootJsonFormat[Visit] = jsonFormat(Visit.apply,
     "id", "location", "user", "visited_at", "mark")
 
-  implicit val visitUpdateFormat: RootJsonFormat[VisitUpdate] = jsonFormat(VisitUpdate.apply,
-    "location", "user", "visited_at", "mark")
+  implicit val visitUpdateFormat: RootJsonReader[VisitUpdate] = new RootJsonReader[VisitUpdate] {
+    override def read(json: JsValue): VisitUpdate = {
+      implicit val fields = json.asJsObject.fields
+      VisitUpdate(
+        getField[Int]("location"),
+        getField[Int]("user"),
+        getField[Instant]("visited_at"),
+        getField[Int]("mark")
+      )
+    }
+  }
+
+  private def getField[T: JsonReader](name: String)(implicit fields: Map[String, JsValue]) = fields.get(name) match {
+    case Some(JsNull) => deserializationError("null is forbidden")
+    case Some(x) => Some(x.convertTo[T])
+    case None => None
+  }
 }
