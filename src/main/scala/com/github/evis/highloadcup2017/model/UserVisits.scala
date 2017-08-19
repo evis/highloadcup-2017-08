@@ -13,6 +13,7 @@ case class UserVisit(visitId: Int,
                      distance: Int) {
 
   def `with`(update: VisitUpdate): UserVisit = copy(
+    locationId = update.location.getOrElse(locationId),
     mark = update.mark.getOrElse(mark),
     visitedAt = update.visitedAt.getOrElse(visitedAt),
   )
