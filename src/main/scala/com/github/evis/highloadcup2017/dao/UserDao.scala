@@ -1,20 +1,19 @@
 package com.github.evis.highloadcup2017.dao
 
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 
 import com.github.evis.highloadcup2017.model.{User, UserUpdate}
 
+import scala.collection.mutable
+
 class UserDao(generationInstant: Instant) {
-  private val users = new ConcurrentHashMap[Int, User]()
+  private val users = new mutable.HashMap[Int, User]()
 
   private var visitDao: VisitDao = _
 
-  def create(user: User): Unit =
-    users.put(user.id, user)
+  def create(user: User): Unit = users += user.id -> user
 
-  def read(id: Int): Option[User] =
-    Option(users.get(id))
+  def read(id: Int): Option[User] = users.get(id)
 
   //noinspection UnitInMap
   def update(id: Int, update: UserUpdate): Option[Unit] = {
