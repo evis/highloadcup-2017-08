@@ -90,9 +90,8 @@ package object model {
 
   implicit val userVisitsFormat: RootJsonWriter[UserVisits] = jsonFormat1(UserVisits)
 
-  implicit def instantToUserVisit(instant: Instant): UserVisit = UserVisit(
-    -1, instant, null, null, -1
-  )
+  implicit def instantToUserVisit(instant: Option[Instant]): Option[UserVisit] =
+    instant.map(UserVisit(-1, _, null, null, -1))
 
   implicit val userVisitOrdering: Ordering[UserVisit] =
     Ordering.by(_.visitedAt)
