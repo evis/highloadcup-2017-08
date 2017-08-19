@@ -64,7 +64,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
           userVisits.getOrElseUpdate(newUserId, mutable.SortedSet())
         case _ =>
           oldUserVisits
-      }) += (oldUserVisit `with` update)
+      }) += oldUserVisit.`with`(update, locationDao)
       val oldLocationId = visit.location
       val oldLocationVisits = locationVisits(oldLocationId)
       val oldLocationVisit = oldLocationVisits.find(_.visitId == id).getOrElse(
@@ -75,7 +75,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
           locationVisits.getOrElseUpdate(newLocationId, mutable.SortedSet())
         case _ =>
           oldLocationVisits
-      }) += (oldLocationVisit `with` update)
+      }) += oldLocationVisit.`with`(update, userDao, generationInstant)
       visits += id -> (visit `with` update)
     }
 
