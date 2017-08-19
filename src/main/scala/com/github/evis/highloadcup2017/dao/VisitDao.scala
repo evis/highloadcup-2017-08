@@ -1,6 +1,7 @@
 package com.github.evis.highloadcup2017.dao
 
 import java.time.Instant
+import java.util.Collections.emptyNavigableSet
 import java.util.concurrent.ConcurrentHashMap
 
 import com.github.evis.highloadcup2017.model.{UserVisit, UserVisits, UserVisitsRequest, Visit, VisitUpdate}
@@ -44,14 +45,16 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
   def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     val allVisits = userVisits.get(request.user)
     val filteredByDate = (request.fromDate, request.toDate) match {
-      case (Some(from), Some(to)) =>
+      case (Some(from), Some(to)) if from.isBefore(to) =>
         allVisits.subSet(from, false, to, false)
       case (Some(from), None) =>
         allVisits.tailSet(from, false)
       case (None, Some(to)) =>
         allVisits.headSet(to, false)
-      case _ =>
+      case (None, None) =>
         allVisits
+      case _ =>
+        emptyNavigableSet()
     }
     filteredByDate.asScala.filter(userVisit =>
       request.toDistance.fold(true)(_ > userVisit.distance) &&
