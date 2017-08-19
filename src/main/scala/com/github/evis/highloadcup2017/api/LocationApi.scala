@@ -25,7 +25,7 @@ class LocationApi(locationDao: LocationDao, visitDao: VisitDao) extends ApiBase 
           }
         } ~ path("avg") {
           parameters("fromDate".as[Instant].?, "toDate".as[Instant].?,
-            "fromAge".as[Int].?, "toAge".as[Int].?, "gender".as[Gender].?) {
+            "fromAge".as[Int].?, "toAge".as[Int].?, "gender".?) {
             (fromDate, toDate, fromAge, toAge, gender) =>
               complete {
                 visitDao.locationAvg(LocationAvgRequest(
@@ -34,7 +34,8 @@ class LocationApi(locationDao: LocationDao, visitDao: VisitDao) extends ApiBase 
                   toDate,
                   fromAge,
                   toAge,
-                  gender
+                  // normally this mapping should be in parameter
+                  gender.map(GenderEnum.withName)
                 ))
               }
           }

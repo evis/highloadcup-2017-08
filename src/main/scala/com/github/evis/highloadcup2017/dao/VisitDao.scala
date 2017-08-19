@@ -78,24 +78,28 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
     }
   }
 
-  def userVisits(request: UserVisitsRequest): UserVisits = {
-    UserVisits(
-      userVisits.get(request.user).fold(Seq[UserVisit]())(
-        _.rangeImpl(request.fromDate, request.toDate) // to is inclusive! need to be exclusive =(
+  def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
+    userDao.read(request.user).map { _ =>
+      val optVisits = userVisits.get(request.user)
+      UserVisits(
+        // to is inclusive! need to be exclusive =(
+        optVisits.fold(Seq[UserVisit]())(_.rangeImpl(request.fromDate, request.toDate)
           .filter(userVisit =>
-          request.toDistance.fold(true)(_ > userVisit.distance) &&
-            request.country.fold(true)(_ == userVisit.country)
-        ).toSeq)
-    )
+            request.toDistance.fold(true)(_ > userVisit.distance) &&
+              request.country.fold(true)(_ == userVisit.country)
+          ).toSeq))
+    }
   }
 
   def locationAvg(request: LocationAvgRequest): Option[LocationAvgResponse] = {
-    locationVisits.get(request.location).map { visits =>
-      val found = visits.rangeImpl(request.fromDate, request.toDate) // again bad inclusive
+    locationDao.read(request.location).map { _ =>
+      val optVisits = locationVisits.get(request.location)
+      // again bad inclusive
+      val found = optVisits.fold(mutable.SortedSet[LocationVisit]())(_.rangeImpl(request.fromDate, request.toDate)
         .filter(visit =>
-        request.fromAge.fold(true)(_ < visit.age) &&
-          request.toAge.fold(true)(_ > visit.age) &&
-          request.gender.fold(true)(_ == visit.gender))
+          request.fromAge.fold(true)(_ < visit.age) &&
+            request.toAge.fold(true)(_ > visit.age) &&
+            request.gender.fold(true)(_ == visit.gender)))
       val count = found.size
       val avg =
         if (count == 0) 0
