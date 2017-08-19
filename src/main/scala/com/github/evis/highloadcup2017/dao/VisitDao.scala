@@ -4,10 +4,11 @@ import java.time.Instant
 import java.util.Collections.emptyNavigableSet
 import java.util.concurrent.ConcurrentHashMap
 
-import com.github.evis.highloadcup2017.model.{UserVisit, UserVisits, UserVisitsRequest, Visit, VisitUpdate}
+import com.github.evis.highloadcup2017.model._
 import com.google.common.collect.TreeMultimap
 
 import scala.collection.JavaConverters._
+import scala.collection.SortedSet
 
 class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
   private val visits = new ConcurrentHashMap[Int, Visit]()
@@ -54,9 +55,9 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       case (None, None) =>
         allVisits
       case _ =>
-        emptyNavigableSet()
+        emptyNavigableSet[UserVisit]()
     }
-    filteredByDate.asScala.filter(userVisit =>
+    SortedSet(filteredByDate.asScala.toSeq: _*).filter(userVisit =>
       request.toDistance.fold(true)(_ > userVisit.distance) &&
         request.country.fold(true)(_ == userVisit.country)
     ).toSeq match {
