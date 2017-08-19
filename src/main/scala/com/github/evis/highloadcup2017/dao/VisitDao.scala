@@ -41,7 +41,7 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
   def update(id: Int, update: VisitUpdate): Option[Unit] =
     read(id).map(visit => visits.put(id, visit `with` update))
 
-  def userVisits(request: UserVisitsRequest): UserVisits = {
+  def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     val allVisits = userVisits.get(request.user)
     val filteredByDate = (request.fromDate, request.toDate) match {
       case (Some(from), Some(to)) =>
@@ -53,11 +53,12 @@ class VisitDao(locationDao: LocationDao, generationInstant: Instant) {
       case _ =>
         allVisits
     }
-    UserVisits(
-      filteredByDate.asScala.filter(userVisit =>
-        request.toDistance.fold(true)(_ > userVisit.distance) &&
-          request.country.fold(true)(_ == userVisit.country)
-      ).toSeq
-    )
+    filteredByDate.asScala.filter(userVisit =>
+      request.toDistance.fold(true)(_ > userVisit.distance) &&
+        request.country.fold(true)(_ == userVisit.country)
+    ).toSeq match {
+      case Seq() => None
+      case filteredVisits => Some(UserVisits(filteredVisits))
+    }
   }
 }
