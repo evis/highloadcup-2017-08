@@ -2,6 +2,7 @@ package com.github.evis.highloadcup2017.api
 
 import java.time.Instant
 
+import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.github.evis.highloadcup2017.dao.{LocationDao, VisitDao}
@@ -28,15 +29,22 @@ class LocationApi(locationDao: LocationDao, visitDao: VisitDao) extends ApiBase 
             "fromAge".as[Int].?, "toAge".as[Int].?, "gender".?) {
             (fromDate, toDate, fromAge, toAge, gender) =>
               complete {
-                visitDao.locationAvg(LocationAvgRequest(
-                  location = id,
-                  fromDate,
-                  toDate,
-                  fromAge,
-                  toAge,
+                try {
                   // normally this mapping should be in parameter
-                  gender.map(GenderEnum.withName)
-                ))
+                  val parsedGender = gender.map(GenderEnum.withName)
+                  visitDao.locationAvg(LocationAvgRequest(
+                    location = id,
+                    fromDate,
+                    toDate,
+                    fromAge,
+                    toAge,
+                    parsedGender
+                  ))
+                } catch {
+                  // if gender == some bullshit
+                  case _: NoSuchElementException =>
+                    BadRequest
+                }
               }
           }
         }
