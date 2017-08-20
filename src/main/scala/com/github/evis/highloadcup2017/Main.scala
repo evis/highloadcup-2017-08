@@ -3,7 +3,7 @@ package com.github.evis.highloadcup2017
 import java.nio.file.NoSuchFileException
 import java.time.Instant
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import better.files.File
@@ -32,11 +32,12 @@ object Main extends App {
   userDao.setVisitDao(visitDao)
   locationDao.setVisitDao(visitDao)
 
+  val postActor = system.actorOf(Props(new PostActor(userDao, locationDao, visitDao)))
   new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
-  val userApi = new UserApi(userDao, visitDao)
-  val locationApi = new LocationApi(locationDao, visitDao)
-  val visitApi = new VisitApi(visitDao)
+  val userApi = new UserApi(userDao, visitDao, postActor)
+  val locationApi = new LocationApi(locationDao, visitDao, postActor)
+  val visitApi = new VisitApi(visitDao, postActor)
   val api = new Api(userApi, locationApi, visitApi)
 
   Http().bindAndHandle(api.route, "0.0.0.0", port)
