@@ -148,5 +148,7 @@ class ColossusHandler(userDao: UserDao,
         case Failure(_) =>
           Callback.successful(req.badRequest(""))
       }
+    case req =>
+      Callback.successful(req.notFound(""))
   }
 }
