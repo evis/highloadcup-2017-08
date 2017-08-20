@@ -77,7 +77,7 @@ class ColossusHandler(userDao: UserDao,
               Callback.successful(req.notFound(""))
           }
         case Failure(_) =>
-          Callback.successful(req.badRequest(""))
+          Callback.successful(req.notFound(""))
       }
     // reads
     case req@Get on Root / "users" / Integer(id) =>
@@ -85,21 +85,21 @@ class ColossusHandler(userDao: UserDao,
         case Some(user) =>
           Callback.successful(req.ok(user.toJson.compactPrint))
         case None =>
-          Callback.successful(req.badRequest(""))
+          Callback.successful(req.notFound(""))
       }
     case req@Get on Root / "locations" / Integer(id) =>
       locationDao.read(id) match {
         case Some(location) =>
           Callback.successful(req.ok(location.toJson.compactPrint))
         case None =>
-          Callback.successful(req.badRequest(""))
+          Callback.successful(req.notFound(""))
       }
     case req@Get on Root / "visits" / Integer(id) =>
       visitDao.read(id) match {
         case Some(visit) =>
           Callback.successful(req.ok(visit.toJson.compactPrint))
         case None =>
-          Callback.successful(req.badRequest(""))
+          Callback.successful(req.notFound(""))
       }
     // user visits
     case req@Get on Root / "users" / Integer(id) / "visits" =>
