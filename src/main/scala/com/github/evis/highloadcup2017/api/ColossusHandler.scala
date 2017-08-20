@@ -11,7 +11,7 @@ import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Location, LocationAvgRequest, LocationUpdate, User, UserUpdate, UserVisitsRequest, Visit, VisitUpdate}
 import spray.json._
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class ColossusHandler(userDao: UserDao,
                       locationDao: LocationDao,
@@ -104,14 +104,16 @@ class ColossusHandler(userDao: UserDao,
     // user visits
     case req@Get on Root / "users" / Integer(id) / "visits" =>
       val params = req.head.parameters
-      val fromDate = params.getFirstAs[Instant]("fromDate")
-      val toDate = params.getFirstAs[Instant]("toDate")
-      val country = params.getFirst("country")
-      val distance = params.getFirstAs[Int]("distance")
+      val fromDate = params.optParam[Instant]("fromDate")
+      val toDate = params.optParam[Instant]("toDate")
+      val country = params.optParam[String]("country")
+      val distance = params.optParam[Int]("distance")
       fromDate.flatMap(_ => toDate).flatMap(_ => distance) match {
         case Success(_) =>
+          implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
+
           visitDao.userVisits(UserVisitsRequest(
-            id, fromDate.toOption, toDate.toOption, country, distance.toOption
+            id, fromDate, toDate, country, distance
           )) match {
             case Some(visits) =>
               Callback.successful(req.ok(visits.toJson.compactPrint))
@@ -124,17 +126,19 @@ class ColossusHandler(userDao: UserDao,
     // location average
     case req@Get on Root / "locations" / Integer(id) / "avg" =>
       val params = req.head.parameters
-      val fromDate = params.getFirstAs[Instant]("fromDate")
-      val toDate = params.getFirstAs[Instant]("toDate")
-      val fromAge = params.getFirstAs[Int]("fromAge")
-      val toAge = params.getFirstAs[Int]("toAge")
-      val gender = params.getFirstAs[Char]("gender")
+      val fromDate = params.optParam[Instant]("fromDate")
+      val toDate = params.optParam[Instant]("toDate")
+      val fromAge = params.optParam[Int]("fromAge")
+      val toAge = params.optParam[Int]("toAge")
+      val gender = params.optParam[Char]("gender")
       fromDate.flatMap(_ => toDate).flatMap(_ => fromAge).flatMap(_ => toAge)
         .flatMap(_ => gender) match {
 
         case Success(_) =>
+          implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
+
           visitDao.locationAvg(LocationAvgRequest(
-            id, fromDate.toOption, toDate.toOption, fromAge.toOption, toAge.toOption, gender.toOption
+            id, fromDate, toDate, fromAge, toAge, gender
           )) match {
             case Some(avg) =>
               Callback.successful(req.ok(avg.toJson.compactPrint))
