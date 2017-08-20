@@ -17,7 +17,6 @@ object Main extends App {
   val port = args(0).toInt
   implicit val system = ActorSystem("http-server")
   implicit val materializer = ActorMaterializer()
-  implicit val ec = system.dispatcher
 
   val generationInstant = try {
     Instant.ofEpochSecond(
