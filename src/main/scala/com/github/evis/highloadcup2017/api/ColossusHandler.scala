@@ -107,13 +107,13 @@ class ColossusHandler(userDao: UserDao,
       val fromDate = params.optParam[Instant]("fromDate")
       val toDate = params.optParam[Instant]("toDate")
       val country = params.optParam[String]("country")
-      val distance = params.optParam[Int]("distance")
-      fromDate.flatMap(_ => toDate).flatMap(_ => distance) match {
+      val toDistance = params.optParam[Int]("toDistance")
+      fromDate.flatMap(_ => toDate).flatMap(_ => toDistance) match {
         case Success(_) =>
           implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
 
           visitDao.userVisits(UserVisitsRequest(
-            id, fromDate, toDate, country, distance
+            id, fromDate, toDate, country, toDistance
           )) match {
             case Some(visits) =>
               Callback.successful(req.ok(visits.toJson.compactPrint))
