@@ -77,7 +77,7 @@ class ColossusHandler(userDao: UserDao,
               Callback.successful(req.notFound(""))
           }
         case Failure(_) =>
-          Callback.successful(req.notFound(""))
+          Callback.successful(req.badRequest(""))
       }
     // reads
     case req@Get on Root / "users" / Integer(id) =>
