@@ -1,8 +1,10 @@
 package com.github.evis.highloadcup2017
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorSystem}
+import akka.dispatch.{PriorityGenerator, UnboundedStablePriorityMailbox}
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Location, LocationUpdate, User, UserUpdate, Visit, VisitUpdate}
+import com.typesafe.config.Config
 
 class PostActor(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) extends Actor {
   override def receive: Receive = {
@@ -22,3 +24,13 @@ class PostActor(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) 
     }
   }
 }
+
+class PostActorPriorityMailbox(settings: ActorSystem.Settings, config: Config)
+  extends UnboundedStablePriorityMailbox(
+    PriorityGenerator {
+      case _: User => 0
+      case _: Visit => 0
+      case _: Location => 0
+      case _ => 1
+    }
+  )

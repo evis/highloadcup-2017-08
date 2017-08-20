@@ -31,7 +31,7 @@ object Main extends App {
   userDao.setVisitDao(visitDao)
   locationDao.setVisitDao(visitDao)
 
-  val postActor = system.actorOf(Props(new PostActor(userDao, locationDao, visitDao)))
+  val postActor = system.actorOf(Props(new PostActor(userDao, locationDao, visitDao)), "post-actor")
   new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
   val userApi = new UserApi(userDao, visitDao, postActor)
