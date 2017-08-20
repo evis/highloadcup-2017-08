@@ -108,20 +108,19 @@ class ColossusHandler(userDao: UserDao,
       val toDate = params.optParam[Instant]("toDate")
       val country = params.optParam[String]("country")
       val toDistance = params.optParam[Int]("toDistance")
-      fromDate.flatMap(_ => toDate).flatMap(_ => toDistance) match {
-        case Success(_) =>
-          implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
+      if (anyFailed(fromDate, toDate, country, toDistance)) {
+        Callback.successful(req.badRequest(""))
+      } else {
+        implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
 
-          visitDao.userVisits(UserVisitsRequest(
-            id, fromDate, toDate, country, toDistance
-          )) match {
-            case Some(visits) =>
-              Callback.successful(req.ok(visits.toJson.compactPrint))
-            case None =>
-              Callback.successful(req.notFound(""))
-          }
-        case Failure(_) =>
-          Callback.successful(req.badRequest(""))
+        visitDao.userVisits(UserVisitsRequest(
+          id, fromDate, toDate, country, toDistance
+        )) match {
+          case Some(visits) =>
+            Callback.successful(req.ok(visits.toJson.compactPrint))
+          case None =>
+            Callback.successful(req.notFound(""))
+        }
       }
     // location average
     case req@Get on Root / "locations" / Integer(id) / "avg" =>
@@ -131,22 +130,19 @@ class ColossusHandler(userDao: UserDao,
       val fromAge = params.optParam[Int]("fromAge")
       val toAge = params.optParam[Int]("toAge")
       val gender = params.optParam[Char]("gender")
-      fromDate.flatMap(_ => toDate).flatMap(_ => fromAge).flatMap(_ => toAge)
-        .flatMap(_ => gender) match {
+      if (anyFailed(fromDate, toDate, fromAge, toAge, gender)) {
+        Callback.successful(req.badRequest(""))
+      } else {
+        implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
 
-        case Success(_) =>
-          implicit def tryOptionToOption[T](obj: Try[Option[T]]): Option[T] = obj.getOrElse(None)
-
-          visitDao.locationAvg(LocationAvgRequest(
-            id, fromDate, toDate, fromAge, toAge, gender
-          )) match {
-            case Some(avg) =>
-              Callback.successful(req.ok(avg.toJson.compactPrint))
-            case None =>
-              Callback.successful(req.notFound(""))
-          }
-        case Failure(_) =>
-          Callback.successful(req.badRequest(""))
+        visitDao.locationAvg(LocationAvgRequest(
+          id, fromDate, toDate, fromAge, toAge, gender
+        )) match {
+          case Some(avg) =>
+            Callback.successful(req.ok(avg.toJson.compactPrint))
+          case None =>
+            Callback.successful(req.notFound(""))
+        }
       }
     case req =>
       Callback.successful(req.notFound(""))

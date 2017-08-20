@@ -11,4 +11,5 @@ package object api {
       params.getFirst(key).fold(Success(None): Try[Option[T]])(parser.parse(_).map(Some(_)))
   }
 
+  def anyFailed(tries: Try[Any]*): Boolean = tries.exists(_.isFailure)
 }
