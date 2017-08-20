@@ -2,28 +2,13 @@ package com.github.evis.highloadcup2017
 
 import java.time.Instant
 
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.language.implicitConversions
 
 package object model {
-  type Gender = GenderEnum.Value
-
-  def toGender(s: String): Gender = GenderEnum.withName(s)
-
-  val Male: Gender = GenderEnum.Male
-  val Female: Gender = GenderEnum.Female
-
-  implicit val genderFormat: RootJsonFormat[Gender] = new RootJsonFormat[Gender] {
-    override def read(json: JsValue): Gender = json match {
-      case JsString(s) => toGender(s)
-      case _ => throw new Exception("Gender should be JsString")
-    }
-
-    override def write(obj: Gender): JsValue = JsString(obj.toString)
-  }
-
   implicit val instantFormat: RootJsonFormat[Instant] = new RootJsonFormat[Instant] {
     override def read(json: JsValue): Instant = json match {
       case JsNumber(seconds) => Instant.ofEpochSecond(seconds.toInt)
@@ -43,7 +28,7 @@ package object model {
         getField[String]("email"),
         getField[String]("first_name"),
         getField[String]("last_name"),
-        getField[Gender]("gender"),
+        getField[Char]("gender"),
         getField[Instant]("birth_date")
       )
     }
@@ -94,7 +79,7 @@ package object model {
     instant.map(UserVisit(-1, -1, -1, _, null, null, -1))
 
   implicit def instantToLocationVisit(instant: Option[Instant]): Option[LocationVisit] =
-    instant.map(LocationVisit(-1, -1, -1, _, -1, null))
+    instant.map(LocationVisit(-1, -1, -1, _, -1, 'g'))
 
   implicit val userVisitOrdering: Ordering[UserVisit] =
     Ordering.by(_.visitedAt)
@@ -103,6 +88,19 @@ package object model {
     Ordering.by(_.visitedAt)
 
   implicit val locationAvgResponseFormat: RootJsonWriter[LocationAvgResponse] = jsonFormat1(LocationAvgResponse)
+
+  implicit val genderCharFromStringUnmarshaller: Unmarshaller[String, Char] =
+    Unmarshaller.strict[String, Char] {
+      string => string.length match {
+        case 1 => string.head match {
+          case 'm' => 'm'
+          case 'f' => 'f'
+          case _ => throw new IllegalArgumentException("Gender should be either m or f")
+        }
+        case 0 => throw Unmarshaller.NoContentException
+        case _ => throw new IllegalArgumentException("Char should be exactly one symbol")
+      }
+    }
 
   private def getField[T: JsonReader](name: String)(implicit fields: Map[String, JsValue]) = fields.get(name) match {
     case Some(JsNull) => deserializationError("null is forbidden")

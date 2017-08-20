@@ -10,7 +10,7 @@ case class LocationVisit(userId: Int,
                          mark: Int,
                          visitedAt: Instant,
                          age: Int,
-                         gender: Gender) {
+                         gender: Char) {
 
   def `with`(update: UserUpdate, generationInstant: Instant): LocationVisit = copy(
     age = update.birthDate.map(
@@ -42,6 +42,6 @@ case class LocationAvgRequest(location: Int,
                               toDate: Option[Instant],
                               fromAge: Option[Int],
                               toAge: Option[Int],
-                              gender: Option[Gender])
+                              gender: Option[Char])
 
 case class LocationAvgResponse(avg: Double)

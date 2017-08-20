@@ -6,7 +6,7 @@ case class User(id: Int,
                 email: String,
                 firstName: String,
                 lastName: String,
-                gender: Gender,
+                gender: Char,
                 birthDate: Instant) {
 
   def `with`(update: UserUpdate): User = copy(
@@ -21,5 +21,5 @@ case class User(id: Int,
 case class UserUpdate(email: Option[String],
                       firstName: Option[String],
                       lastName: Option[String],
-                      gender: Option[Gender],
+                      gender: Option[Char],
                       birthDate: Option[Instant])
