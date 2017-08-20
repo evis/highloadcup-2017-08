@@ -102,7 +102,7 @@ class ColossusHandler(userDao: UserDao,
           Callback.successful(req.badRequest(""))
       }
     // user visits
-    case req@Get on Root / "user" / Integer(id) / "visits" =>
+    case req@Get on Root / "users" / Integer(id) / "visits" =>
       val params = req.head.parameters
       val fromDate = params.getFirstAs[Instant]("fromDate")
       val toDate = params.getFirstAs[Instant]("toDate")
