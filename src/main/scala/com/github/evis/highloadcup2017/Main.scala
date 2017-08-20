@@ -4,10 +4,13 @@ import java.nio.file.NoSuchFileException
 import java.time.Instant
 
 import akka.actor.{ActorSystem, Props}
-import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import better.files.File
-import com.github.evis.highloadcup2017.api.{Api, LocationApi, UserApi, VisitApi}
+import colossus.IOSystem
+import colossus.core.ServerContext
+import colossus.protocols.http
+import colossus.protocols.http.server.{HttpServer, Initializer, RequestHandler}
+import colossus.service.GenRequestHandler.PartialHandler
+import com.github.evis.highloadcup2017.api._
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 
 object Main extends App {
@@ -16,7 +19,6 @@ object Main extends App {
 
   val port = args(0).toInt
   implicit val system = ActorSystem("http-server")
-  implicit val materializer = ActorMaterializer()
 
   val generationInstant = try {
     Instant.ofEpochSecond(
@@ -34,10 +36,18 @@ object Main extends App {
   val postActor = system.actorOf(Props(new PostActor(userDao, locationDao, visitDao)), "post-actor")
   new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
-  val userApi = new UserApi(userDao, visitDao, postActor)
-  val locationApi = new LocationApi(locationDao, visitDao, postActor)
-  val visitApi = new VisitApi(visitDao, postActor)
-  val api = new Api(userApi, locationApi, visitApi)
+  implicit val ioSystem = IOSystem()
 
-  Http().bindAndHandle(api.route, "0.0.0.0", port)
+  val httpHandle = new ColossusHandler(userDao, locationDao, visitDao).httpHandle
+
+  HttpServer.start("server", port) {
+    new Initializer(_) {
+      override def onConnect: (ServerContext) => RequestHandler =
+        new RequestHandler(_) {
+          override protected def handle: PartialHandler[http.Http] = {
+            httpHandle
+          }
+        }
+    }
+  }
 }

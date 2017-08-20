@@ -3,11 +3,14 @@ package com.github.evis.highloadcup2017
 import java.nio.file.Files
 
 import better.files._
+import com.github.evis.highloadcup2017.api.JsonFormats
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Location, User, Visit}
 import spray.json._
 
-class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) {
+class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao)
+  extends JsonFormats {
+
   def load(zipPath: String): Unit =
     File(zipPath).unzip().list.toSeq.sortBy(_.name).foreach { file =>
       // streaming?
