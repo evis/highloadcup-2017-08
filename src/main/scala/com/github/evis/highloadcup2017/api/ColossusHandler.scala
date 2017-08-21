@@ -23,7 +23,8 @@ class ColossusHandler(userDao: UserDao,
                       postActor: ActorRef,
                       initMaxUserId: Int,
                       initMaxLocationId: Int,
-                      initMaxVisitId: Int) extends Decoders with Encoders with Parsers with StrictLogging {
+                      initMaxVisitId: Int,
+                      isRateRun: Boolean) extends Decoders with Encoders with Parsers with StrictLogging {
 
   def httpHandle: PartialHandler[Http] = {
     // creates
@@ -184,7 +185,7 @@ class ColossusHandler(userDao: UserDao,
   }
 
   private def cleanIfPostsDone() = {
-    if (posts.get() == 12000) {
+    if (posts.get() == maxPostsAmount) {
       logger.debug("End of phase 2")
       postActor ! PoisonPill
       maxUserId = maxUserIdCounter.get()
@@ -214,4 +215,6 @@ class ColossusHandler(userDao: UserDao,
   @volatile private var maxVisitId = initMaxVisitId
 
   private val posts = new AtomicInteger()
+
+  private val maxPostsAmount = if (isRateRun) 120000 else 1000
 }

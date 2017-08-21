@@ -21,15 +21,21 @@ object Main extends App with StrictLogging {
   val port = args(0).toInt
   implicit val system = ActorSystem("http-server")
 
-  val generationDateTime = try {
-    val generationTime = File("/tmp/data/options.txt").lineIterator.next().toInt
+  val (generationDateTime, isRateRun) = try {
+    val optionLines = File("/tmp/data/options.txt").lineIterator
+    val generationTime = optionLines.next().toInt
+    val isRateRun = optionLines.next() == "1"
     logger.info(s"Generation time is $generationTime")
-    LocalDateTime.ofEpochSecond(
-      generationTime, 0, ZoneOffset.UTC)
+    logger.info(s"RateRun is $isRateRun")
+    (
+      LocalDateTime.ofEpochSecond(
+        generationTime, 0, ZoneOffset.UTC),
+      isRateRun
+    )
   } catch {
     case _: NoSuchFileException =>
-      logger.warn("Options file not found! Default to datetime.now()")
-      LocalDateTime.now(ZoneOffset.UTC)
+      logger.warn("Options file not found! Default to (datetime.now(), true)")
+      (LocalDateTime.now(ZoneOffset.UTC), true)
   }
 
   val userDao = new UserDao
@@ -45,7 +51,7 @@ object Main extends App with StrictLogging {
   implicit val ioSystem = IOSystem()
 
   val httpHandle = new ColossusHandler(
-    userDao, locationDao, visitDao, postActor, maxUserId, maxLocationId, maxVisitId
+    userDao, locationDao, visitDao, postActor, maxUserId, maxLocationId, maxVisitId, isRateRun
   ).httpHandle
 
   HttpServer.start("server", port) {
