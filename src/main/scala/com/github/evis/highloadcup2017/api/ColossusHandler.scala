@@ -31,6 +31,7 @@ class ColossusHandler(userDao: UserDao,
       req.body.as[User] match {
         case Success(user) =>
           tryUpdateMax(maxUserIdCounter, user.id)
+          maxUserIdCounter.getAndIncrement()
           postActor ! user
           cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
@@ -42,6 +43,7 @@ class ColossusHandler(userDao: UserDao,
       req.body.as[Location] match {
         case Success(location) =>
           tryUpdateMax(maxLocationIdCounter, location.id)
+          maxLocationIdCounter.getAndIncrement()
           postActor ! location
           cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
@@ -54,6 +56,7 @@ class ColossusHandler(userDao: UserDao,
       req.body.as[Visit] match {
         case Success(visit) =>
           tryUpdateMax(maxVisitIdCounter, visit.id)
+          maxVisitIdCounter.getAndIncrement()
           postActor ! visit
           cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
@@ -181,6 +184,7 @@ class ColossusHandler(userDao: UserDao,
 
   private def cleanIfPostsDone() = {
     if (posts.get() == 12000) {
+      logger.debug("End of phase 2")
       postActor ! PoisonPill
       maxUserId = maxUserIdCounter.get()
       maxLocationId = maxLocationIdCounter.get()
