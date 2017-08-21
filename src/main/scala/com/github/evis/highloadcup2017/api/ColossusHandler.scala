@@ -9,6 +9,7 @@ import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Location, LocationAvgRequest, LocationUpdate, User, UserUpdate, UserVisitsRequest, Visit, VisitUpdate}
 import spray.json._
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 class ColossusHandler(userDao: UserDao,
