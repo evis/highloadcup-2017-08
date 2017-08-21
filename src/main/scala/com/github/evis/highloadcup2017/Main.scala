@@ -39,11 +39,14 @@ object Main extends App with StrictLogging {
   locationDao.setVisitDao(visitDao)
 
   val postActor = system.actorOf(Props(new PostActor(userDao, locationDao, visitDao)), "post-actor")
-  new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
+  val (maxUserId, maxLocationId, maxVisitId) =
+    new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
   implicit val ioSystem = IOSystem()
 
-  val httpHandle = new ColossusHandler(userDao, locationDao, visitDao).httpHandle
+  val httpHandle = new ColossusHandler(
+    userDao, locationDao, visitDao, postActor, maxUserId, maxLocationId, maxVisitId
+  ).httpHandle
 
   HttpServer.start("server", port) {
     new Initializer(_) {

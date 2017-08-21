@@ -11,7 +11,7 @@ import spray.json._
 class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao)
   extends JsonFormats {
 
-  def load(zipPath: String): Unit =
+  def load(zipPath: String): (Int, Int, Int) = {
     File(zipPath).unzip().list.toSeq.sortBy(_.name).foreach { file =>
       // streaming?
       val string = new String(Files.readAllBytes(file.path))
@@ -28,13 +28,33 @@ class InitialDataLoader(userDao: UserDao, locationDao: LocationDao, visitDao: Vi
       }
       saveFun(entities.map(_.asJsObject))
     }
+    (maxUserId, maxLocationId, maxVisitId)
+  }
 
   private def saveUsers(jsons: Seq[JsObject]) =
-    jsons.foreach(json => userDao.create(json.convertTo[User]))
+    jsons.foreach { json =>
+      val id = getId(json)
+      if (id > maxUserId) maxUserId = id
+      userDao.create(json.convertTo[User])
+    }
 
   private def saveLocations(jsons: Seq[JsObject]) =
-    jsons.foreach(json => locationDao.create(json.convertTo[Location]))
+    jsons.foreach { json =>
+      val id = getId(json)
+      if (id > maxLocationId) maxLocationId = id
+      locationDao.create(json.convertTo[Location])
+    }
 
   private def saveVisits(jsons: Seq[JsObject]) =
-    jsons.foreach(json => visitDao.create(json.convertTo[Visit]))
+    jsons.foreach { json =>
+      val id = getId(json)
+      if (id > maxVisitId) maxVisitId = id
+      visitDao.create(json.convertTo[Visit])
+    }
+
+  private def getId(json: JsObject) = json.getFields("id").head.convertTo[Int]
+
+  private var maxUserId = 0
+  private var maxLocationId = 0
+  private var maxVisitId = 0
 }

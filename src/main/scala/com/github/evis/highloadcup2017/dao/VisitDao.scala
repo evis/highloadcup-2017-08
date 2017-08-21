@@ -6,15 +6,22 @@ import java.util
 import java.util.Collections.emptyNavigableMap
 import java.util.Comparator
 
+import com.github.evis.highloadcup2017.api.JsonFormats
 import com.github.evis.highloadcup2017.model._
 import com.typesafe.scalalogging.StrictLogging
+import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
-class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: LocalDateTime) extends StrictLogging {
+class VisitDao(userDao: UserDao,
+               locationDao: LocationDao,
+               generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging {
   private val visits = mutable.HashMap[Int, Visit]()
+
+  // is it ok to hardcode size this way?
+  private val jsons = Array.fill[Array[Byte]](1200000)(null)
 
   private val keyOrdering = Ordering.by(Key.unapply)
 
@@ -31,6 +38,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits += visit.id -> visit
+    jsons.update(visit.id, visit.toJson.compactPrint.getBytes)
     locationDao.read(visit.location) match {
       case Some(location) =>
         userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
@@ -63,10 +71,14 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
 
   def read(id: Int): Option[Visit] = visits.get(id)
 
+  def json(id: Int): Array[Byte] = jsons(id)
+
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Option[Unit] =
     read(id).map { visit =>
-      visits.put(id, visit `with` update)
+      val updated = visit `with` update
+      visits.put(id, updated)
+      jsons.update(id, updated.toJson.compactPrint.getBytes)
 
       // can not always update it
       userLocations(visit.user) -= visit.location
@@ -154,6 +166,12 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
         else found.foldLeft(0.0)((acc, visit) => acc + visit.mark) / count
       LocationAvgResponse(BigDecimal(avg).setScale(5, HALF_UP).toDouble)
     }
+  }
+
+  def cleanAfterPost(): Unit = {
+    userLocations.clear()
+    locationUsers.clear()
+    visits.clear()
   }
 
   private def getAllUserVisits(user: Int) =

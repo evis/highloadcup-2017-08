@@ -1,5 +1,8 @@
 package com.github.evis.highloadcup2017.api
 
+import java.util.concurrent.atomic.AtomicInteger
+
+import akka.actor.{ActorRef, PoisonPill}
 import colossus.protocols.http.Http
 import colossus.protocols.http.HttpMethod.{Get, Post}
 import colossus.protocols.http.UrlParsing.{Root, _}
@@ -7,6 +10,7 @@ import colossus.service.Callback
 import colossus.service.GenRequestHandler.PartialHandler
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Location, LocationAvgRequest, LocationUpdate, User, UserUpdate, UserVisitsRequest, Visit, VisitUpdate}
+import com.typesafe.scalalogging.StrictLogging
 import spray.json._
 
 import scala.language.implicitConversions
@@ -14,92 +18,120 @@ import scala.util.{Failure, Success, Try}
 
 class ColossusHandler(userDao: UserDao,
                       locationDao: LocationDao,
-                      visitDao: VisitDao) extends Decoders with Parsers {
+                      visitDao: VisitDao,
+                      postActor: ActorRef,
+                      initMaxUserId: Int,
+                      initMaxLocationId: Int,
+                      initMaxVisitId: Int) extends Decoders with Encoders with Parsers with StrictLogging {
+
   def httpHandle: PartialHandler[Http] = {
     // creates
     case req@Post on Root / "users" / "new" =>
+      posts.getAndIncrement()
       req.body.as[User] match {
         case Success(user) =>
-          userDao.create(user)
+          tryUpdateMax(maxUserIdCounter, user.id)
+          postActor ! user
+          cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
         case Failure(_) =>
           Callback.successful(req.badRequest(""))
       }
     case req@Post on Root / "locations" / "new" =>
+      posts.getAndIncrement()
       req.body.as[Location] match {
         case Success(location) =>
-          locationDao.create(location)
+          tryUpdateMax(maxLocationIdCounter, location.id)
+          postActor ! location
+          cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
         case Failure(_) =>
+          cleanIfPostsDone()
           Callback.successful(req.badRequest(""))
       }
     case req@Post on Root / "visits" / "new" =>
+      posts.getAndIncrement()
       req.body.as[Visit] match {
         case Success(visit) =>
-          visitDao.create(visit)
+          tryUpdateMax(maxVisitIdCounter, visit.id)
+          postActor ! visit
+          cleanIfPostsDone()
           Callback.successful(req.ok("{}"))
         case Failure(_) =>
+          cleanIfPostsDone()
           Callback.successful(req.badRequest(""))
       }
     // updates
     case req@Post on Root / "users" / Integer(id) =>
+      posts.getAndIncrement()
       req.body.as[UserUpdate] match {
         case Success(update) =>
-          userDao.update(id, update) match {
-            case Some(_) =>
-              Callback.successful(req.ok("{}"))
-            case None =>
-              Callback.successful(req.notFound(""))
+          if (maxUserIdCounter.get() >= id) {
+            postActor ! (id, update)
+            cleanIfPostsDone()
+            Callback.successful(req.ok("{}"))
+          } else {
+            cleanIfPostsDone()
+            Callback.successful(req.notFound(""))
           }
         case Failure(_) =>
+          cleanIfPostsDone()
           Callback.successful(req.badRequest(""))
       }
     case req@Post on Root / "locations" / Integer(id) =>
+      posts.getAndIncrement()
       req.body.as[LocationUpdate] match {
         case Success(update) =>
-          locationDao.update(id, update) match {
-            case Some(_) =>
-              Callback.successful(req.ok("{}"))
-            case None =>
-              Callback.successful(req.notFound(""))
+          if (maxLocationIdCounter.get() >= id) {
+            postActor ! (id, update)
+            cleanIfPostsDone()
+            Callback.successful(req.ok("{}"))
+          } else {
+            cleanIfPostsDone()
+            Callback.successful(req.notFound(""))
           }
         case Failure(_) =>
+          cleanIfPostsDone()
           Callback.successful(req.badRequest(""))
       }
     case req@Post on Root / "visits" / Integer(id) =>
+      posts.getAndIncrement()
       req.body.as[VisitUpdate] match {
         case Success(update) =>
-          visitDao.update(id, update) match {
-            case Some(_) =>
-              Callback.successful(req.ok("{}"))
-            case None =>
-              Callback.successful(req.notFound(""))
+          if (maxVisitIdCounter.get() >= id) {
+            postActor ! (id, update)
+            cleanIfPostsDone()
+            Callback.successful(req.ok("{}"))
+          } else {
+            cleanIfPostsDone()
+            Callback.successful(req.notFound(""))
           }
         case Failure(_) =>
+          cleanIfPostsDone()
           Callback.successful(req.badRequest(""))
       }
     // reads
     case req@Get on Root / "users" / Integer(id) =>
-      userDao.read(id) match {
-        case Some(user) =>
-          Callback.successful(req.ok(user.toJson.compactPrint))
-        case None =>
-          Callback.successful(req.notFound(""))
-      }
+      // it's volatile!
+      //noinspection ScalaUselessExpression
+      maxVisitId
+      if (id <= maxUserId)
+        Callback.successful(req.ok(userDao.json(id)))
+      else
+        Callback.successful(req.notFound(""))
     case req@Get on Root / "locations" / Integer(id) =>
-      locationDao.read(id) match {
-        case Some(location) =>
-          Callback.successful(req.ok(location.toJson.compactPrint))
-        case None =>
-          Callback.successful(req.notFound(""))
-      }
+      // it's volatile!
+      //noinspection ScalaUselessExpression
+      maxVisitId
+      if (id <= maxLocationId)
+        Callback.successful(req.ok(locationDao.json(id)))
+      else
+        Callback.successful(req.notFound(""))
     case req@Get on Root / "visits" / Integer(id) =>
-      visitDao.read(id) match {
-        case Some(visit) =>
-          Callback.successful(req.ok(visit.toJson.compactPrint))
-        case None =>
-          Callback.successful(req.notFound(""))
-      }
+      if (id <= maxVisitId)
+        Callback.successful(req.ok(visitDao.json(id)))
+      else
+        Callback.successful(req.notFound(""))
     // user visits
     case req@Get on Root / "users" / Integer(id) / "visits" =>
       val params = req.head.parameters
@@ -146,4 +178,31 @@ class ColossusHandler(userDao: UserDao,
     case req =>
       Callback.successful(req.notFound(""))
   }
+
+  private def cleanIfPostsDone() = {
+    if (posts.get() == 12000) {
+      postActor ! PoisonPill
+      maxUserId = maxUserIdCounter.get()
+      maxLocationId = maxLocationIdCounter.get()
+      maxVisitId = maxVisitIdCounter.get()
+    }
+  }
+
+  private def tryUpdateMax(max: AtomicInteger, newMax: Int) {
+    var prev = -1
+    do {
+      prev = max.get()
+    } while (newMax > prev && !max.compareAndSet(prev, newMax))
+  }
+
+  private val maxUserIdCounter = new AtomicInteger(initMaxUserId)
+  private val maxLocationIdCounter = new AtomicInteger(initMaxLocationId)
+  private val maxVisitIdCounter = new AtomicInteger(initMaxVisitId)
+
+  private var maxUserId = initMaxUserId
+  private var maxLocationId = initMaxLocationId
+  // it's volatile, so, we will read it every time we want to read maxUserId or maxLocationId
+  @volatile private var maxVisitId = initMaxVisitId
+
+  private val posts = new AtomicInteger()
 }
