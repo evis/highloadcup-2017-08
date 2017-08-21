@@ -32,7 +32,7 @@ trait JsonFormats extends DefaultJsonProtocol {
         getField[String]("first_name"),
         getField[String]("last_name"),
         getField[Char]("gender"),
-        getField[Instant]("birth_date")
+        getField[Int]("birth_date")
       )
     }
   }
@@ -55,7 +55,7 @@ trait JsonFormats extends DefaultJsonProtocol {
       VisitUpdate(
         getField[Int]("location"),
         getField[Int]("user"),
-        getField[Instant]("visited_at"),
+        getField[Int]("visited_at"),
         getField[Int]("mark")
       )
     }
@@ -64,7 +64,7 @@ trait JsonFormats extends DefaultJsonProtocol {
   implicit val userVisitWriter: RootJsonFormat[UserVisit] = new RootJsonFormat[UserVisit] {
     override def write(userVisit: UserVisit): JsValue = JsObject(
       "mark" -> JsNumber(userVisit.mark),
-      "visited_at" -> JsNumber(userVisit.visitedAt.getEpochSecond),
+      "visited_at" -> JsNumber(userVisit.visitedAt),
       "place" -> JsString(userVisit.place)
     )
 

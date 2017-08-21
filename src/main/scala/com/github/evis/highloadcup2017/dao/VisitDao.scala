@@ -8,7 +8,7 @@ import com.github.evis.highloadcup2017.model._
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
-class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: Instant) {
+class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: LocalDateTime) {
   private val visits = mutable.HashMap[Int, Visit]()
   // here int is user id
   private val userVisits = mutable.HashMap[Int, mutable.SortedSet[UserVisit]]()
@@ -45,10 +45,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
         visit.mark,
         visit.visitedAt,
         // switch to datetimes everywhere?
-        user.birthDate.atZone(ZoneId.systemDefault()).until(
-          generationInstant.atZone(ZoneId.systemDefault()),
-          YEARS
-        ).toInt,
+        LocalDateTime.ofEpochSecond(user.birthDate, 0, ZoneOffset.UTC).until(generationDateTime, YEARS).toInt,
         user.gender
       )
     }
@@ -88,7 +85,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
           locationVisits.getOrElseUpdate(newLocationId, mutable.SortedSet())
         case _ =>
           oldLocationVisits
-      }) += oldLocationVisit.`with`(update, userDao, generationInstant)
+      }) += oldLocationVisit.`with`(update, userDao, generationDateTime)
       visits += id -> (visit `with` update)
     }
 
@@ -112,7 +109,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
           val toUpdate = visits.filter(_.userId == userId)
           visits --= toUpdate
           val seq = toUpdate.toSeq
-          visits ++= seq.map(_.`with`(update, generationInstant))
+          visits ++= seq.map(_.`with`(update, generationDateTime))
         }
       }
     }
@@ -124,7 +121,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
       UserVisits(
         optVisits.fold(Seq[UserVisit]())(
           _.rangeImpl(request.fromDate,
-            instantToUserVisit(request.toDate.map(_.minusSeconds(1))))
+            intToUserVisit(request.toDate))
             .filter(userVisit =>
               request.toDistance.fold(true)(_ > userVisit.distance) &&
                 request.country.fold(true)(_ == userVisit.country)
@@ -137,7 +134,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
       val optVisits = locationVisits.get(request.location)
       val found = optVisits.fold(mutable.SortedSet[LocationVisit]())(
         _.rangeImpl(request.fromDate,
-          instantToLocationVisit(request.toDate.map(_.minusSeconds(1))))
+          intToLocationVisit(request.toDate))
           .filter(visit =>
             request.fromAge.fold(true)(_ < visit.age) &&
               request.toAge.fold(true)(_ > visit.age) &&

@@ -1,7 +1,7 @@
 package com.github.evis.highloadcup2017
 
 import java.nio.file.NoSuchFileException
-import java.time.Instant
+import java.time.{LocalDateTime, ZoneOffset}
 
 import akka.actor.{ActorSystem, Props}
 import better.files.File
@@ -20,16 +20,16 @@ object Main extends App {
   val port = args(0).toInt
   implicit val system = ActorSystem("http-server")
 
-  val generationInstant = try {
-    Instant.ofEpochSecond(
-      File("/tmp/data/options.txt").lineIterator.next().toInt)
+  val generationDateTime = try {
+    LocalDateTime.ofEpochSecond(
+      File("/tmp/data/options.txt").lineIterator.next().toInt, 0, ZoneOffset.UTC)
   } catch {
-    case _: NoSuchFileException => Instant.now()
+    case _: NoSuchFileException => LocalDateTime.now(ZoneOffset.UTC)
   }
 
-  val userDao = new UserDao(generationInstant)
-  val locationDao = new LocationDao(generationInstant)
-  val visitDao = new VisitDao(userDao, locationDao, generationInstant)
+  val userDao = new UserDao
+  val locationDao = new LocationDao
+  val visitDao = new VisitDao(userDao, locationDao, generationDateTime)
   userDao.setVisitDao(visitDao)
   locationDao.setVisitDao(visitDao)
 

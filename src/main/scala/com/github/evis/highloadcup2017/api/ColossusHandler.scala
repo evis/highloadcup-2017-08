@@ -1,7 +1,5 @@
 package com.github.evis.highloadcup2017.api
 
-import java.time.Instant
-
 import colossus.protocols.http.Http
 import colossus.protocols.http.HttpMethod.{Get, Post}
 import colossus.protocols.http.UrlParsing.{Root, _}
@@ -104,8 +102,8 @@ class ColossusHandler(userDao: UserDao,
     // user visits
     case req@Get on Root / "users" / Integer(id) / "visits" =>
       val params = req.head.parameters
-      val fromDate = params.optParam[Instant]("fromDate")
-      val toDate = params.optParam[Instant]("toDate")
+      val fromDate = params.optParam[Int]("fromDate")
+      val toDate = params.optParam[Int]("toDate")
       val country = params.optParam[String]("country")
       val toDistance = params.optParam[Int]("toDistance")
       if (anyFailed(fromDate, toDate, country, toDistance)) {
@@ -125,8 +123,8 @@ class ColossusHandler(userDao: UserDao,
     // location average
     case req@Get on Root / "locations" / Integer(id) / "avg" =>
       val params = req.head.parameters
-      val fromDate = params.optParam[Instant]("fromDate")
-      val toDate = params.optParam[Instant]("toDate")
+      val fromDate = params.optParam[Int]("fromDate")
+      val toDate = params.optParam[Int]("toDate")
       val fromAge = params.optParam[Int]("fromAge")
       val toAge = params.optParam[Int]("toAge")
       val gender = params.optParam[Char]("gender")

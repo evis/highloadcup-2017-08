@@ -1,12 +1,10 @@
 package com.github.evis.highloadcup2017.dao
 
-import java.time.Instant
-
 import com.github.evis.highloadcup2017.model.{Location, LocationUpdate}
 
 import scala.collection.mutable
 
-class LocationDao(generationInstant: Instant) {
+class LocationDao {
   private val locations = new mutable.HashMap[Int, Location]()
 
   private var visitDao: VisitDao = _

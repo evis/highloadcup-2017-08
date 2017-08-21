@@ -1,7 +1,5 @@
 package com.github.evis.highloadcup2017.model
 
-import java.time.Instant
-
 import com.github.evis.highloadcup2017.dao.LocationDao
 
 case class UserVisits(visits: Iterable[UserVisit])
@@ -9,7 +7,7 @@ case class UserVisits(visits: Iterable[UserVisit])
 case class UserVisit(visitId: Int,
                      locationId: Int,
                      mark: Int,
-                     visitedAt: Instant,
+                     visitedAt: Int,
                      place: String,
                      country: String,
                      distance: Int) {
@@ -35,7 +33,7 @@ case class UserVisit(visitId: Int,
 }
 
 case class UserVisitsRequest(user: Int,
-                             fromDate: Option[Instant],
-                             toDate: Option[Instant],
+                             fromDate: Option[Int],
+                             toDate: Option[Int],
                              country: Option[String],
                              toDistance: Option[Int])
