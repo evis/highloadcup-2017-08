@@ -145,7 +145,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
     locationDao.read(request.location).map { _ =>
       val visits = getLocationVisits(request.location, request.fromDate, request.toDate).values().asScala
       val found = visits.filter(visit =>
-        request.fromAge.fold(true)(_ < visit.age) &&
+        request.fromAge.fold(true)(_ <= visit.age) &&
           request.toAge.fold(true)(_ > visit.age) &&
           request.gender.fold(true)(_ == visit.gender))
       val count = found.size
