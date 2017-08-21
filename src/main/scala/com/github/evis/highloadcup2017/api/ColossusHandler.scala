@@ -13,6 +13,7 @@ import com.github.evis.highloadcup2017.model.{Location, LocationAvgRequest, Loca
 import com.typesafe.scalalogging.StrictLogging
 import spray.json._
 
+import scala.annotation.tailrec
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
@@ -193,10 +194,14 @@ class ColossusHandler(userDao: UserDao,
   }
 
   private def tryUpdateMax(max: AtomicInteger, newMax: Int) {
-    var prev = -1
-    do {
-      prev = max.get()
-    } while (newMax > prev && !max.compareAndSet(prev, newMax))
+    @tailrec
+    def cycle(): Unit = {
+      val prev = max.get()
+      if (newMax > prev && !max.compareAndSet(prev, newMax))
+        cycle()
+    }
+
+    cycle()
   }
 
   private val maxUserIdCounter = new AtomicInteger(initMaxUserId)
