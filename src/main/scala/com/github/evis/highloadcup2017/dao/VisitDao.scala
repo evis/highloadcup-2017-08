@@ -2,18 +2,27 @@ package com.github.evis.highloadcup2017.dao
 
 import java.time._
 import java.time.temporal.ChronoUnit.YEARS
+import java.util
+import java.util.Collections.emptyNavigableMap
+import java.util.Comparator
 
 import com.github.evis.highloadcup2017.model._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
 class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: LocalDateTime) {
   private val visits = mutable.HashMap[Int, Visit]()
-  // here int is user id
-  private val userVisits = mutable.HashMap[Int, mutable.SortedSet[UserVisit]]()
-  // and here int is location id
-  private val locationVisits = new mutable.HashMap[Int, mutable.SortedSet[LocationVisit]]()
+
+  private val keyOrdering = Ordering.by(Key.unapply)
+
+  private val keyComparator = new Comparator[Key] {
+    override def compare(k1: Key, k2: Key): Int = keyOrdering.compare(k1, k2)
+  }
+
+  private val userVisits = new util.TreeMap[Key, UserVisit](keyComparator)
+  private val locationVisits = new util.TreeMap[Key, LocationVisit](keyComparator)
   // helper indexes for faster update
   private val userLocations = mutable.HashMap[Int, mutable.Set[Int]]()
   private val locationUsers = mutable.HashMap[Int, mutable.Set[Int]]()
@@ -25,7 +34,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
       case Some(location) =>
         userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
         locationUsers.getOrElseUpdate(visit.location, mutable.Set()) += visit.user
-        userVisits.getOrElseUpdate(visit.user, mutable.SortedSet()) += UserVisit(
+        userVisits.put(Key(visit.user, visit.visitedAt, visit.id), UserVisit(
           visit.id,
           visit.location,
           visit.mark,
@@ -33,13 +42,13 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
           location.place,
           location.country,
           location.distance
-        )
+        ))
       case None =>
         // handle it with exception handler?
         throw new Exception(s"Location ${visit.location} not found")
     }
     userDao.read(visit.user).foreach { user =>
-      locationVisits.getOrElseUpdate(visit.location, mutable.SortedSet()) += LocationVisit(
+      locationVisits.put(Key(visit.location, visit.visitedAt, visit.id), LocationVisit(
         visit.user,
         visit.id,
         visit.mark,
@@ -47,7 +56,7 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
         // switch to datetimes everywhere?
         LocalDateTime.ofEpochSecond(user.birthDate, 0, ZoneOffset.UTC).until(generationDateTime, YEARS).toInt,
         user.gender
-      )
+      ))
     }
   }
 
@@ -65,39 +74,42 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
       locationUsers.getOrElseUpdate(newLocation, mutable.Set()) += newUser
 
       val oldUserId = visit.user
-      val oldUserVisits = userVisits(oldUserId)
-      val oldUserVisit = oldUserVisits.find(_.visitId == id).getOrElse(
-        throw new RuntimeException(s"Unable to find user visit ${visit.id} for user ${visit.user}"))
-      oldUserVisits.remove(oldUserVisit)
-      (update.user match {
-        case Some(newUserId) if newUserId != oldUserId =>
-          userVisits.getOrElseUpdate(newUserId, mutable.SortedSet())
-        case _ =>
-          oldUserVisits
-      }) += oldUserVisit.`with`(update, locationDao)
+      val oldTimestamp = visit.visitedAt
+      val oldUserKey = Key(oldUserId, oldTimestamp, visit.id)
+      val oldUserVisit = userVisits.get(oldUserKey)
+      val newUserId = update.user.getOrElse(oldUserId)
+      val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
+      val newUserKey = Key(newUserId, newTimestamp, visit.id)
+      val newUserVisit = oldUserVisit.`with`(update, locationDao)
+      if (oldUserKey == newUserKey) {
+        userVisits.replace(newUserKey, newUserVisit)
+      } else {
+        userVisits.remove(oldUserKey)
+        userVisits.put(newUserKey, newUserVisit)
+      }
+
       val oldLocationId = visit.location
-      val oldLocationVisits = locationVisits(oldLocationId)
-      val oldLocationVisit = oldLocationVisits.find(_.visitId == id).getOrElse(
-        throw new RuntimeException(s"Unable to find user visit ${visit.id} for user ${visit.user}"))
-      oldLocationVisits.remove(oldLocationVisit)
-      (update.location match {
-        case Some(newLocationId) if newLocationId != oldLocationId =>
-          locationVisits.getOrElseUpdate(newLocationId, mutable.SortedSet())
-        case _ =>
-          oldLocationVisits
-      }) += oldLocationVisit.`with`(update, userDao, generationDateTime)
-      visits += id -> (visit `with` update)
+      val oldLocationKey = Key(oldLocationId, oldTimestamp, visit.id)
+      val oldLocationVisit = locationVisits.get(oldLocationKey)
+      val newLocationId = update.location.getOrElse(oldLocationId)
+      val newLocationKey = Key(newLocationId, newTimestamp, visit.id)
+      val newLocationVisit = oldLocationVisit.`with`(update, userDao, generationDateTime)
+      if (oldLocationKey == newLocationKey) {
+        locationVisits.replace(newLocationKey, newLocationVisit)
+      } else {
+        locationVisits.remove(oldLocationKey)
+        locationVisits.put(newLocationKey, newLocationVisit)
+      }
     }
 
   def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
     locationUsers.get(locationId).foreach {
       _.foreach { user =>
-        userVisits.get(user).foreach { visits =>
-          val toUpdate = visits.filter(_.locationId == locationId)
-          visits --= toUpdate
-          val seq = toUpdate.toSeq
-          visits ++= seq.map(_ `with` update)
-        }
+        getAllUserVisits(user).asScala.view
+          .filter(_._2.locationId == locationId)
+          .map { case (key, visit) => (key, visit `with` update) }
+          .toSeq
+          .foreach { case (key, newVisit) => userVisits.replace(key, newVisit) }
       }
     }
   }
@@ -105,40 +117,34 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
   def updateUser(userId: Int, update: UserUpdate): Unit = {
     userLocations.get(userId).foreach {
       _.foreach { location =>
-        locationVisits.get(location).foreach { visits =>
-          val toUpdate = visits.filter(_.userId == userId)
-          visits --= toUpdate
-          val seq = toUpdate.toSeq
-          visits ++= seq.map(_.`with`(update, generationDateTime))
-        }
+        getAllLocationVisits(location).asScala.view
+          .filter(_._2.userId == userId)
+          .map { case (key, visit) => (key, visit.`with`(update, generationDateTime)) }
+          .toSeq
+          .foreach { case (key, newVisit) => locationVisits.replace(key, newVisit) }
       }
     }
   }
 
   def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
     userDao.read(request.user).map { _ =>
-      val optVisits = userVisits.get(request.user)
       UserVisits(
-        optVisits.fold(Seq[UserVisit]())(
-          _.rangeImpl(request.fromDate,
-            intToUserVisit(request.toDate))
-            .filter(userVisit =>
-              request.toDistance.fold(true)(_ > userVisit.distance) &&
-                request.country.fold(true)(_ == userVisit.country)
-            ).toSeq))
+        getUserVisits(request.user, request.fromDate, request.toDate).values().asScala
+          .filter(userVisit =>
+            request.toDistance.fold(true)(_ > userVisit.distance) &&
+              request.country.fold(true)(_ == userVisit.country)
+          ).toSeq
+      )
     }
   }
 
   def locationAvg(request: LocationAvgRequest): Option[LocationAvgResponse] = {
     locationDao.read(request.location).map { _ =>
-      val optVisits = locationVisits.get(request.location)
-      val found = optVisits.fold(mutable.SortedSet[LocationVisit]())(
-        _.rangeImpl(request.fromDate,
-          intToLocationVisit(request.toDate))
-          .filter(visit =>
-            request.fromAge.fold(true)(_ < visit.age) &&
-              request.toAge.fold(true)(_ > visit.age) &&
-              request.gender.fold(true)(_ == visit.gender)))
+      val found = getLocationVisits(request.location, request.fromDate, request.toDate).values().asScala
+        .filter(visit =>
+          request.fromAge.fold(true)(_ < visit.age) &&
+            request.toAge.fold(true)(_ > visit.age) &&
+            request.gender.fold(true)(_ == visit.gender))
       val count = found.size
       val avg =
         if (count == 0) 0
@@ -146,4 +152,32 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
       LocationAvgResponse(BigDecimal(avg).setScale(5, HALF_UP).toDouble)
     }
   }
+
+  private def getAllUserVisits(user: Int) =
+    userVisits.subMap(
+      Key(user, Int.MinValue, Int.MinValue), true,
+      Key(user, Int.MaxValue, Int.MaxValue), true)
+
+  private def getAllLocationVisits(location: Int) =
+    locationVisits.subMap(
+      Key(location, Int.MinValue, Int.MinValue), true,
+      Key(location, Int.MaxValue, Int.MaxValue), true)
+
+  private def getUserVisits(user: Int, fromDate: Option[Int], toDate: Option[Int]) =
+    getByKeyAndDate(userVisits, user, fromDate, toDate)
+
+  private def getLocationVisits(location: Int, fromDate: Option[Int], toDate: Option[Int]) =
+    getByKeyAndDate(locationVisits, location, fromDate, toDate)
+
+  private def getByKeyAndDate[V](map: util.TreeMap[Key, V], key: Int, fromDate: Option[Int], toDate: Option[Int]) =
+    (fromDate, toDate) match {
+      case (Some(from), Some(to)) if from >= to =>
+        emptyNavigableMap[Key, V]()
+      case _ =>
+        map.subMap(
+          Key(key, fromDate.getOrElse(Int.MinValue), Int.MinValue), true,
+          Key(key, toDate.getOrElse(Int.MaxValue), Int.MinValue), false)
+    }
 }
+
+case class Key(key: Int, timestamp: Int, visitId: Int)
