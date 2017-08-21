@@ -8,6 +8,7 @@ libraryDependencies ++= Seq(
   "com.github.pathikrit" %% "better-files" % "2.17.1",
   "io.spray" %%  "spray-json" % "1.3.3",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
   "com.tumblr" %% "colossus" % "0.9.1",
   // binary compatibility with 2.3.9?
   "com.typesafe.akka" %% "akka-actor" % "2.5.4"

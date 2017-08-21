@@ -12,8 +12,9 @@ import colossus.protocols.http.server.{HttpServer, Initializer, RequestHandler}
 import colossus.service.GenRequestHandler.PartialHandler
 import com.github.evis.highloadcup2017.api._
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
+import com.typesafe.scalalogging.StrictLogging
 
-object Main extends App {
+object Main extends App with StrictLogging {
   if (args.length < 1)
     throw new Exception("Usage: Main port")
 
@@ -21,10 +22,14 @@ object Main extends App {
   implicit val system = ActorSystem("http-server")
 
   val generationDateTime = try {
+    val generationTime = File("/tmp/data/options.txt").lineIterator.next().toInt
+    logger.info(s"Generation time is $generationTime")
     LocalDateTime.ofEpochSecond(
-      File("/tmp/data/options.txt").lineIterator.next().toInt, 0, ZoneOffset.UTC)
+      generationTime, 0, ZoneOffset.UTC)
   } catch {
-    case _: NoSuchFileException => LocalDateTime.now(ZoneOffset.UTC)
+    case _: NoSuchFileException =>
+      logger.warn("Options file not found! Default to datetime.now()")
+      LocalDateTime.now(ZoneOffset.UTC)
   }
 
   val userDao = new UserDao

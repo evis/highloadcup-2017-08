@@ -7,12 +7,13 @@ import java.util.Collections.emptyNavigableMap
 import java.util.Comparator
 
 import com.github.evis.highloadcup2017.model._
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
-class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: LocalDateTime) {
+class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: LocalDateTime) extends StrictLogging {
   private val visits = mutable.HashMap[Int, Visit]()
 
   private val keyOrdering = Ordering.by(Key.unapply)
@@ -65,6 +66,8 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Option[Unit] =
     read(id).map { visit =>
+      visits.put(id, visit `with` update)
+
       // can not always update it
       userLocations(visit.user) -= visit.location
       locationUsers(visit.location) -= visit.user
@@ -140,11 +143,11 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationDateTime: L
 
   def locationAvg(request: LocationAvgRequest): Option[LocationAvgResponse] = {
     locationDao.read(request.location).map { _ =>
-      val found = getLocationVisits(request.location, request.fromDate, request.toDate).values().asScala
-        .filter(visit =>
-          request.fromAge.fold(true)(_ < visit.age) &&
-            request.toAge.fold(true)(_ > visit.age) &&
-            request.gender.fold(true)(_ == visit.gender))
+      val visits = getLocationVisits(request.location, request.fromDate, request.toDate).values().asScala
+      val found = visits.filter(visit =>
+        request.fromAge.fold(true)(_ < visit.age) &&
+          request.toAge.fold(true)(_ > visit.age) &&
+          request.gender.fold(true)(_ == visit.gender))
       val count = found.size
       val avg =
         if (count == 0) 0
