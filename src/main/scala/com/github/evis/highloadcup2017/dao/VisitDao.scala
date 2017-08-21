@@ -14,12 +14,17 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
   private val userVisits = mutable.HashMap[Int, mutable.SortedSet[UserVisit]]()
   // and here int is location id
   private val locationVisits = new mutable.HashMap[Int, mutable.SortedSet[LocationVisit]]()
+  // helper indexes for faster update
+  private val userLocations = mutable.HashMap[Int, mutable.Set[Int]]()
+  private val locationUsers = mutable.HashMap[Int, mutable.Set[Int]]()
 
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits += visit.id -> visit
     locationDao.read(visit.location) match {
       case Some(location) =>
+        userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
+        locationUsers.getOrElseUpdate(visit.location, mutable.Set()) += visit.user
         userVisits.getOrElseUpdate(visit.user, mutable.SortedSet()) += UserVisit(
           visit.id,
           visit.location,
@@ -54,6 +59,14 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Option[Unit] =
     read(id).map { visit =>
+      // can not always update it
+      userLocations(visit.user) -= visit.location
+      locationUsers(visit.location) -= visit.user
+      val newUser = update.user.getOrElse(visit.user)
+      val newLocation = update.location.getOrElse(visit.location)
+      userLocations.getOrElseUpdate(newUser, mutable.Set()) += newLocation
+      locationUsers.getOrElseUpdate(newLocation, mutable.Set()) += newUser
+
       val oldUserId = visit.user
       val oldUserVisits = userVisits(oldUserId)
       val oldUserVisit = oldUserVisits.find(_.visitId == id).getOrElse(
@@ -80,22 +93,28 @@ class VisitDao(userDao: UserDao, locationDao: LocationDao, generationInstant: In
     }
 
   def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
-    // need one more index to do it faster?
-    userVisits.values.foreach { visits =>
-      val toUpdate = visits.filter(_.locationId == locationId)
-      visits --= toUpdate
-      val seq = toUpdate.toSeq
-      visits ++= seq.map(_ `with` update)
+    locationUsers.get(locationId).foreach {
+      _.foreach { user =>
+        userVisits.get(user).foreach { visits =>
+          val toUpdate = visits.filter(_.locationId == locationId)
+          visits --= toUpdate
+          val seq = toUpdate.toSeq
+          visits ++= seq.map(_ `with` update)
+        }
+      }
     }
   }
 
   def updateUser(userId: Int, update: UserUpdate): Unit = {
-    // need one more index to do it faster?
-    locationVisits.values.foreach { visits =>
-      val toUpdate = visits.filter(_.userId == userId)
-      visits --= toUpdate
-      val seq = toUpdate.toSeq
-      visits ++= seq.map(_.`with`(update, generationInstant))
+    userLocations.get(userId).foreach {
+      _.foreach { location =>
+        locationVisits.get(location).foreach { visits =>
+          val toUpdate = visits.filter(_.userId == userId)
+          visits --= toUpdate
+          val seq = toUpdate.toSeq
+          visits ++= seq.map(_.`with`(update, generationInstant))
+        }
+      }
     }
   }
 
