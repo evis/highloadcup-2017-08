@@ -5,9 +5,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.github.evis.highloadcup2017" level="DEBUG">
-        <appender-ref ref="STDOUT" />
-    </logger>
+    <logger name="com.github.evis.highloadcup2017" level="DEBUG"/>
 
     <root level="ERROR">
         <appender-ref ref="STDOUT" />
