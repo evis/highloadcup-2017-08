@@ -216,5 +216,5 @@ class ColossusHandler(userDao: UserDao,
 
   private val posts = new AtomicInteger()
 
-  private val maxPostsAmount = if (isRateRun) 120000 else 1000
+  private val maxPostsAmount = if (isRateRun) 12000 else 1000
 }
