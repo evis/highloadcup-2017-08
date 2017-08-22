@@ -132,12 +132,8 @@ class RapidoidHandler(userDao: UserDao,
     }
 
     def doGetEntity(dao: Dao, prefix: Array[Byte], maxId: Int) =
-      try {
-        doGetEntityImpl(dao, getEntityId(prefix), maxId)
-      }
-      catch {
-        case NonFatal(_) => NOT_FOUND
-      }
+      try doGetEntityImpl(dao, getEntityId(prefix), maxId)
+      catch { case NonFatal(_) => NOT_FOUND }
 
     def doGetEntityImpl(dao: Dao, id: Int, maxId: Int) = {
       // it's volatile!
