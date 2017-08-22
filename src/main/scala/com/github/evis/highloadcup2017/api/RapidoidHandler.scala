@@ -36,7 +36,6 @@ class RapidoidHandler(userDao: UserDao,
 
     val path = BytesUtil.get(buf.bytes(), helper.path)
     val body = BytesUtil.get(buf.bytes(), helper.body)
-    val json = body.parseJson
 
     def doGet() =
       if (startsWithUsers) doGetUsers()
@@ -45,11 +44,12 @@ class RapidoidHandler(userDao: UserDao,
       else NOT_FOUND
 
     def doPost() = {
+      val json = body.parseJson
       posts.getAndIncrement()
       val result =
-        if (startsWithUsers) doPostUsers()
-        else if (startsWithLocations) doPostLocations()
-        else if (startsWithVisits) doPostVisits()
+        if (startsWithUsers) doPostUsers(json)
+        else if (startsWithLocations) doPostLocations(json)
+        else if (startsWithVisits) doPostVisits(json)
         else NOT_FOUND
       cleanIfPostsDone()
       result
@@ -82,29 +82,32 @@ class RapidoidHandler(userDao: UserDao,
       ???
     }
 
-    def doPostUsers() =
-      doCreateOrUpdateEntity(userFormat, userUpdateReader, Users, maxUserIdCounter)
+    def doPostUsers(json: JsValue) =
+      doCreateOrUpdateEntity(json, userFormat, userUpdateReader, Users, maxUserIdCounter)
 
-    def doPostLocations() =
-      doCreateOrUpdateEntity(locationFormat, locationUpdateReader, Locations, maxLocationIdCounter)
+    def doPostLocations(json: JsValue) =
+      doCreateOrUpdateEntity(json, locationFormat, locationUpdateReader, Locations, maxLocationIdCounter)
 
-    def doPostVisits() =
-      doCreateOrUpdateEntity(visitFormat, visitUpdateReader, Visits, maxVisitIdCounter)
+    def doPostVisits(json: JsValue) =
+      doCreateOrUpdateEntity(json, visitFormat, visitUpdateReader, Visits, maxVisitIdCounter)
 
-    def doCreateOrUpdateEntity[E <: Entity, U <: EntityUpdate](entityReader: JsonReader[E],
+    def doCreateOrUpdateEntity[E <: Entity, U <: EntityUpdate](json: JsValue,
+                                                               entityReader: JsonReader[E],
                                                                updateReader: JsonReader[U],
                                                                prefix: Array[Byte],
                                                                maxIdCounter: AtomicInteger) =
       try {
         if (path.endsWith("/new"))
-          doCreateEntity(entityReader, maxIdCounter)
+          doCreateEntity(json, entityReader, maxIdCounter)
         else
-          doUpdateEntity(updateReader, prefix, maxIdCounter)
+          doUpdateEntity(json, updateReader, prefix, maxIdCounter)
       } catch {
         case _: DeserializationException => sendBadRequest()
       }
 
-    def doCreateEntity[T <: Entity](entityReader: JsonReader[T], maxIdCounter: AtomicInteger) = {
+    def doCreateEntity[T <: Entity](json: JsValue,
+                                    entityReader: JsonReader[T],
+                                    maxIdCounter: AtomicInteger) = {
       val user = entityReader.read(json)
       tryUpdateMax(maxUserIdCounter, user.id)
       postActor ! user
@@ -112,7 +115,8 @@ class RapidoidHandler(userDao: UserDao,
       sendOk()
     }
 
-    def doUpdateEntity[U <: EntityUpdate](updateReader: JsonReader[U],
+    def doUpdateEntity[U <: EntityUpdate](json: JsValue,
+                                          updateReader: JsonReader[U],
                                           prefix: Array[Byte],
                                           maxIdCounter: AtomicInteger) = {
       val update = updateReader.read(json)
