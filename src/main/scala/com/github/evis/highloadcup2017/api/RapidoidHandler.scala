@@ -45,15 +45,19 @@ class RapidoidHandler(userDao: UserDao,
       else sendNotFound()
 
     def doPost() = {
-      val json = body.parseJson
-      posts.getAndIncrement()
-      val result =
-        if (startsWithUsers) doPostUsers(json)
-        else if (startsWithLocations) doPostLocations(json)
-        else if (startsWithVisits) doPostVisits(json)
-        else sendNotFound()
-      cleanIfPostsDone()
-      result
+      try {
+        val json = body.parseJson
+        posts.getAndIncrement()
+        val result =
+          if (startsWithUsers) doPostUsers(json)
+          else if (startsWithLocations) doPostLocations(json)
+          else if (startsWithVisits) doPostVisits(json)
+          else sendNotFound()
+        cleanIfPostsDone()
+        result
+      } catch {
+        case _: DeserializationException => sendBadRequest()
+      }
     }
 
     def doGetUsers() =
@@ -72,7 +76,7 @@ class RapidoidHandler(userDao: UserDao,
         if (id == -1)
           sendNotFound()
         else {
-          ???
+          sendBadRequest() // TODO
         }
       } catch {
         case NonFatal(_) => sendNotFound()
@@ -80,7 +84,7 @@ class RapidoidHandler(userDao: UserDao,
     }
 
     def doGetLocationAvg() = {
-      ???
+      sendBadRequest() // TODO
     }
 
     def doPostUsers(json: JsValue) =
@@ -97,14 +101,10 @@ class RapidoidHandler(userDao: UserDao,
                                                                updateReader: JsonReader[U],
                                                                prefix: Array[Byte],
                                                                maxIdCounter: AtomicInteger) =
-      try {
-        if (path.endsWith("/new"))
-          doCreateEntity(json, entityReader, maxIdCounter)
-        else
-          doUpdateEntity(json, updateReader, prefix, maxIdCounter)
-      } catch {
-        case _: DeserializationException => sendBadRequest()
-      }
+      if (path.endsWith("/new"))
+        doCreateEntity(json, entityReader, maxIdCounter)
+      else
+        doUpdateEntity(json, updateReader, prefix, maxIdCounter)
 
     def doCreateEntity[T <: Entity](json: JsValue,
                                     entityReader: JsonReader[T],
@@ -141,7 +141,7 @@ class RapidoidHandler(userDao: UserDao,
       //noinspection ScalaUselessExpression
       maxVisitId
       if (id <= maxId)
-        ok(ctx, true, dao.json(id), APPLICATION_JSON)
+        ok(ctx, false, dao.json(id), APPLICATION_JSON)
       else
         sendNotFound()
     }
@@ -149,13 +149,13 @@ class RapidoidHandler(userDao: UserDao,
     def sendOk() = ok(ctx, false, okBody, APPLICATION_JSON)
 
     def sendNotFound() = {
-      startResponse(ctx, 404, helper.isKeepAlive.value)
+      startResponse(ctx, 404, false)
       HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
       DONE
     }
 
     def sendBadRequest() = {
-      startResponse(ctx, 400, helper.isKeepAlive.value)
+      startResponse(ctx, 400, false)
       HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
       DONE
     }
