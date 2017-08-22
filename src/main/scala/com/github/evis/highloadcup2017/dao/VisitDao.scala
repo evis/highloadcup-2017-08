@@ -1,36 +1,29 @@
 package com.github.evis.highloadcup2017.dao
 
+import java.nio.ByteBuffer
 import java.time._
 import java.time.temporal.ChronoUnit.YEARS
-import java.util
-import java.util.Collections.emptyNavigableMap
-import java.util.Comparator
 
 import com.github.evis.highloadcup2017.api.JsonFormats
 import com.github.evis.highloadcup2017.model._
 import com.typesafe.scalalogging.StrictLogging
 import spray.json._
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
 class VisitDao(userDao: UserDao,
                locationDao: LocationDao,
-               generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging {
+               generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
   private val visits = mutable.HashMap[Int, Visit]()
 
   // is it ok to hardcode size this way?
   private val jsons = Array.fill[Array[Byte]](1200000)(null)
 
-  private val keyOrdering = Ordering.by(Key.unapply)
+  private implicit val keyOrdering = Ordering.by(Key.unapply)
 
-  private val keyComparator = new Comparator[Key] {
-    override def compare(k1: Key, k2: Key): Int = keyOrdering.compare(k1, k2)
-  }
-
-  private val userVisits = new util.TreeMap[Key, UserVisit](keyComparator)
-  private val locationVisits = new util.TreeMap[Key, LocationVisit](keyComparator)
+  private val userVisits = mutable.TreeMap.apply[Key, UserVisit]()
+  private val locationVisits = mutable.TreeMap.empty[Key, LocationVisit]
   // helper indexes for faster update
   private val userLocations = mutable.HashMap[Int, mutable.Set[Int]]()
   private val locationUsers = mutable.HashMap[Int, mutable.Set[Int]]()
@@ -50,7 +43,8 @@ class VisitDao(userDao: UserDao,
           visit.visitedAt,
           location.place,
           location.country,
-          location.distance
+          location.distance,
+          UserVisit.genJson(visit.mark, visit.visitedAt, location.place)
         ))
       case None =>
         // handle it with exception handler?
@@ -91,40 +85,37 @@ class VisitDao(userDao: UserDao,
       val oldUserId = visit.user
       val oldTimestamp = visit.visitedAt
       val oldUserKey = Key(oldUserId, oldTimestamp, visit.id)
-      val oldUserVisit = userVisits.get(oldUserKey)
+      val oldUserVisit = userVisits(oldUserKey)
       val newUserId = update.user.getOrElse(oldUserId)
       val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
       val newUserKey = Key(newUserId, newTimestamp, visit.id)
       val newUserVisit = oldUserVisit.`with`(update, locationDao)
-      if (oldUserKey == newUserKey) {
-        userVisits.replace(newUserKey, newUserVisit)
+      if (oldUserKey != newUserKey) {
       } else {
         userVisits.remove(oldUserKey)
-        userVisits.put(newUserKey, newUserVisit)
       }
+      userVisits.put(newUserKey, newUserVisit)
 
       val oldLocationId = visit.location
       val oldLocationKey = Key(oldLocationId, oldTimestamp, visit.id)
-      val oldLocationVisit = locationVisits.get(oldLocationKey)
+      val oldLocationVisit = locationVisits(oldLocationKey)
       val newLocationId = update.location.getOrElse(oldLocationId)
       val newLocationKey = Key(newLocationId, newTimestamp, visit.id)
       val newLocationVisit = oldLocationVisit.`with`(update, userDao, generationDateTime)
-      if (oldLocationKey == newLocationKey) {
-        locationVisits.replace(newLocationKey, newLocationVisit)
-      } else {
+      if (oldLocationKey != newLocationKey) {
         locationVisits.remove(oldLocationKey)
-        locationVisits.put(newLocationKey, newLocationVisit)
       }
+      locationVisits.put(newLocationKey, newLocationVisit)
     }
 
   def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
     locationUsers.get(locationId).foreach {
       _.foreach { user =>
-        getAllUserVisits(user).asScala.view
-          .filter(_._2.locationId == locationId)
+        getAllUserVisits(user).view
+          .withFilter(_._2.locationId == locationId)
           .map { case (key, visit) => (key, visit `with` update) }
           .toSeq
-          .foreach { case (key, newVisit) => userVisits.replace(key, newVisit) }
+          .foreach { case (key, newVisit) => userVisits.put(key, newVisit) }
       }
     }
   }
@@ -132,41 +123,78 @@ class VisitDao(userDao: UserDao,
   def updateUser(userId: Int, update: UserUpdate): Unit = {
     userLocations.get(userId).foreach {
       _.foreach { location =>
-        getAllLocationVisits(location).asScala.view
-          .filter(_._2.userId == userId)
+        getAllLocationVisits(location)
+          .withFilter(_._2.userId == userId)
           .map { case (key, visit) => (key, visit.`with`(update, generationDateTime)) }
           .toSeq
-          .foreach { case (key, newVisit) => locationVisits.replace(key, newVisit) }
+          .foreach { case (key, newVisit) => locationVisits.put(key, newVisit) }
       }
     }
   }
 
-  def userVisits(request: UserVisitsRequest): Option[UserVisits] = {
-    userDao.read(request.user).map { _ =>
-      UserVisits(
-        getUserVisits(request.user, request.fromDate, request.toDate).values().asScala
-          .filter(userVisit =>
-            request.toDistance.fold(true)(_ > userVisit.distance) &&
-              request.country.fold(true)(_ == userVisit.country)
-          ).toSeq
-      )
+  def userVisits(user: Int,
+                 fromDate: Option[Int],
+                 toDate: Option[Int],
+                 country: Option[String],
+                 toDistance: Option[Int]): Array[Byte] = {
+    val filtered = getUserVisits(user, fromDate, toDate).valuesIterator
+      .withFilter(userVisit =>
+        toDistance.fold(true)(_ > userVisit.distance) &&
+          country.fold(true)(_ == userVisit.country)
+      ).map(_.json).toSeq
+    // don't allocate each time?
+    val buffer = ByteBuffer.allocate(
+      filtered.map(_.length).sum // for jsons
+        + (if (filtered.nonEmpty) filtered.size - 1 else 0) // for commas
+        + jsonVisitsPrefix.length
+        + jsonVisitsPostfix.length
+    )
+    buffer.put(jsonVisitsPrefix)
+    if (filtered.nonEmpty) {
+      buffer.put(filtered.head)
+      filtered.tail.foreach { visit =>
+        buffer.put(comma)
+        buffer.put(visit)
+      }
     }
+    buffer.array()
   }
 
-  def locationAvg(request: LocationAvgRequest): Option[LocationAvgResponse] = {
-    locationDao.read(request.location).map { _ =>
-      val visits = getLocationVisits(request.location, request.fromDate, request.toDate).values().asScala
-      val found = visits.filter(visit =>
-        request.fromAge.fold(true)(_ <= visit.age) &&
-          request.toAge.fold(true)(_ > visit.age) &&
-          request.gender.fold(true)(_ == visit.gender))
-      val count = found.size
-      val avg =
-        if (count == 0) 0
-        else found.foldLeft(0.0)((acc, visit) => acc + visit.mark) / count
-      LocationAvgResponse(BigDecimal(avg).setScale(5, HALF_UP).toDouble)
-    }
+  private val jsonVisitsPrefix = """{"visits":[}""".getBytes
+  private val jsonVisitsPostfix = "]}".getBytes
+  private val comma = ','.toByte
+
+  def locationAvg(location: Int,
+                  fromDate: Option[Int],
+                  toDate: Option[Int],
+                  fromAge: Option[Int],
+                  toAge: Option[Int],
+                  gender: Option[Char]): Array[Byte] = {
+    val visits = getLocationVisits(location, fromDate, toDate).valuesIterator
+    val found = visits.withFilter(visit =>
+      fromAge.fold(true)(_ <= visit.age) &&
+        toAge.fold(true)(_ > visit.age) &&
+        gender.fold(true)(_ == visit.gender))
+    val count = found.size
+    val avg =
+      if (count == 0) 0
+      else found.foldLeft(0.0)((acc, visit) => acc + visit.mark) / count
+    val scale = 5
+    val result = BigDecimal(avg).setScale(scale, HALF_UP).toDouble.toString.getBytes
+    // don't allocate each time?
+    val buffer = ByteBuffer.wrap(Array.fill[Byte](
+      jsonAvgPrefix.length // for double
+        + result.length
+        + 1 // for jsonAvgSuffix
+    )(0))
+    buffer.put(jsonAvgPrefix)
+    buffer.put(result)
+    buffer.put(jsonAvgSuffix)
+    buffer.array()
   }
+
+  private val jsonAvgPrefix = """{"avg":}""".getBytes
+  private val jsonAvgSuffix = '}'.toByte
 
   def cleanAfterPost(): Unit = {
     userLocations.clear()
@@ -175,14 +203,14 @@ class VisitDao(userDao: UserDao,
   }
 
   private def getAllUserVisits(user: Int) =
-    userVisits.subMap(
-      Key(user, Int.MinValue, Int.MinValue), true,
-      Key(user, Int.MaxValue, Int.MaxValue), true)
+    userVisits.range(
+      Key(user, Int.MinValue, Int.MinValue),
+      Key(user, Int.MaxValue, Int.MaxValue))
 
   private def getAllLocationVisits(location: Int) =
-    locationVisits.subMap(
-      Key(location, Int.MinValue, Int.MinValue), true,
-      Key(location, Int.MaxValue, Int.MaxValue), true)
+    locationVisits.range(
+      Key(location, Int.MinValue, Int.MinValue),
+      Key(location, Int.MaxValue, Int.MaxValue))
 
   private def getUserVisits(user: Int, fromDate: Option[Int], toDate: Option[Int]) =
     getByKeyAndDate(userVisits, user, fromDate, toDate)
@@ -190,15 +218,10 @@ class VisitDao(userDao: UserDao,
   private def getLocationVisits(location: Int, fromDate: Option[Int], toDate: Option[Int]) =
     getByKeyAndDate(locationVisits, location, fromDate, toDate)
 
-  private def getByKeyAndDate[V](map: util.TreeMap[Key, V], key: Int, fromDate: Option[Int], toDate: Option[Int]) =
-    (fromDate, toDate) match {
-      case (Some(from), Some(to)) if from >= to =>
-        emptyNavigableMap[Key, V]()
-      case _ =>
-        map.subMap(
-          Key(key, fromDate.getOrElse(Int.MinValue), Int.MinValue), true,
-          Key(key, toDate.getOrElse(Int.MaxValue), Int.MinValue), false)
-    }
+  private def getByKeyAndDate[V](map: mutable.TreeMap[Key, V], key: Int, fromDate: Option[Int], toDate: Option[Int]) =
+    map.range(
+      Key(key, fromDate.getOrElse(Int.MinValue), Int.MinValue),
+      Key(key, toDate.getOrElse(Int.MaxValue), Int.MinValue))
 }
 
 case class Key(key: Int, timestamp: Int, visitId: Int)

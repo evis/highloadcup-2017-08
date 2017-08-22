@@ -32,12 +32,3 @@ case class LocationVisit(userId: Int,
     )
   }
 }
-
-case class LocationAvgRequest(location: Int,
-                              fromDate: Option[Int],
-                              toDate: Option[Int],
-                              fromAge: Option[Int],
-                              toAge: Option[Int],
-                              gender: Option[Char])
-
-case class LocationAvgResponse(avg: Double)

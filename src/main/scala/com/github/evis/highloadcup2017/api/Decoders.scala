@@ -1,4 +1,4 @@
-package com.github.evis.highloadcup2017.api
+/*package com.github.evis.highloadcup2017.api
 
 import colossus.protocols.http.HttpBodyDecoder
 import spray.json._
@@ -11,4 +11,4 @@ trait Decoders extends JsonFormats {
     override def decode(body: Array[Byte]): Try[T] =
       Try(implicitly[JsonReader[T]].read(new String(body).parseJson))
   }
-}
+}*/

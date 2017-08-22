@@ -2,7 +2,7 @@ package com.github.evis.highloadcup2017.api
 
 import java.time.Instant
 
-import com.github.evis.highloadcup2017.model.{Location, LocationAvgResponse, LocationUpdate, User, UserUpdate, UserVisit, UserVisits, Visit, VisitUpdate}
+import com.github.evis.highloadcup2017.model.{Location, LocationUpdate, User, UserUpdate, UserVisit, UserVisits, Visit, VisitUpdate}
 import spray.json._
 
 trait JsonFormats extends DefaultJsonProtocol {
@@ -24,41 +24,35 @@ trait JsonFormats extends DefaultJsonProtocol {
   implicit val visitFormat: JsonFormat[Visit] = jsonFormat(Visit.apply,
     "id", "location", "user", "visited_at", "mark")
 
-  implicit val userUpdateReader: JsonReader[UserUpdate] = new RootJsonReader[UserUpdate] {
-    override def read(json: JsValue): UserUpdate = {
-      implicit val fields = json.asJsObject.fields
-      UserUpdate(
-        getField[String]("email"),
-        getField[String]("first_name"),
-        getField[String]("last_name"),
-        getField[Char]("gender"),
-        getField[Int]("birth_date")
-      )
-    }
+  implicit val userUpdateReader: JsonReader[UserUpdate] = json => {
+    implicit val fields = json.asJsObject.fields
+    UserUpdate(
+      getField[String]("email"),
+      getField[String]("first_name"),
+      getField[String]("last_name"),
+      getField[Char]("gender"),
+      getField[Int]("birth_date")
+    )
   }
 
-  implicit val locationUpdateReader: JsonReader[LocationUpdate] = new JsonReader[LocationUpdate] {
-    override def read(json: JsValue): LocationUpdate = {
-      implicit val fields = json.asJsObject.fields
-      LocationUpdate(
-        getField[String]("place"),
-        getField[String]("country"),
-        getField[String]("city"),
-        getField[Int]("distance")
-      )
-    }
+  implicit val locationUpdateReader: JsonReader[LocationUpdate] = json => {
+    implicit val fields = json.asJsObject.fields
+    LocationUpdate(
+      getField[String]("place"),
+      getField[String]("country"),
+      getField[String]("city"),
+      getField[Int]("distance")
+    )
   }
 
-  implicit val visitUpdateReader: JsonReader[VisitUpdate] = new JsonReader[VisitUpdate] {
-    override def read(json: JsValue): VisitUpdate = {
-      implicit val fields = json.asJsObject.fields
-      VisitUpdate(
-        getField[Int]("location"),
-        getField[Int]("user"),
-        getField[Int]("visited_at"),
-        getField[Int]("mark")
-      )
-    }
+  implicit val visitUpdateReader: JsonReader[VisitUpdate] = json => {
+    implicit val fields = json.asJsObject.fields
+    VisitUpdate(
+      getField[Int]("location"),
+      getField[Int]("user"),
+      getField[Int]("visited_at"),
+      getField[Int]("mark")
+    )
   }
 
   implicit val userVisitWriter: RootJsonFormat[UserVisit] = new RootJsonFormat[UserVisit] {
@@ -71,9 +65,6 @@ trait JsonFormats extends DefaultJsonProtocol {
     override def read(json: JsValue): UserVisit =
       throw new NotImplementedError
   }
-
-  implicit val locationAvgResponseWriter: JsonWriter[LocationAvgResponse] =
-    jsonFormat1(LocationAvgResponse)
 
   implicit val userVisitsWriter: JsonWriter[UserVisits] =
     jsonFormat1(UserVisits)

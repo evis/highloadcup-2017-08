@@ -5,7 +5,7 @@ case class Visit(id: Int,
                  location: Int,
                  user: Int,
                  visitedAt: Int,
-                 mark: Int) {
+                 mark: Int) extends Entity {
 
   def `with`(update: VisitUpdate): Visit = copy(
     location = update.location.getOrElse(location),
@@ -19,4 +19,4 @@ case class VisitUpdate(// should be case class fields instead of Ints?
                        location: Option[Int],
                        user: Option[Int],
                        visitedAt: Option[Int],
-                       mark: Option[Int])
+                       mark: Option[Int]) extends EntityUpdate

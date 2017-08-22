@@ -1,5 +1,5 @@
 package com.github.evis.highloadcup2017.api
-
+/*
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{ActorRef, PoisonPill}
@@ -217,4 +217,4 @@ class ColossusHandler(userDao: UserDao,
   private val posts = new AtomicInteger()
 
   private val maxPostsAmount = if (isRateRun) 12000 else 1000
-}
+}*/

@@ -1,8 +1,8 @@
-package com.github.evis.highloadcup2017.api
+/*package com.github.evis.highloadcup2017.api
 
 import java.time.Instant
 
-import colossus.protocols.http.ParameterParser
+//import colossus.protocols.http.ParameterParser
 
 import scala.util.{Failure, Try}
 
@@ -18,6 +18,6 @@ trait Parsers {
       case 1 => Try(value.head).filter(c => c == 'm' || c == 'f')
       case 0 => Failure(new Exception("Unable to get char from empty string"))
       case _ => Failure(new Exception("Expected one char"))
-    }
+
   }
-}
+}*/

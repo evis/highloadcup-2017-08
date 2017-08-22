@@ -5,7 +5,7 @@ case class User(id: Int,
                 firstName: String,
                 lastName: String,
                 gender: Char,
-                birthDate: Int) {
+                birthDate: Int) extends Entity {
 
   def `with`(update: UserUpdate): User = copy(
     email = update.email.getOrElse(email),
@@ -20,4 +20,4 @@ case class UserUpdate(email: Option[String],
                       firstName: Option[String],
                       lastName: Option[String],
                       gender: Option[Char],
-                      birthDate: Option[Int])
+                      birthDate: Option[Int]) extends EntityUpdate

@@ -6,7 +6,7 @@ import spray.json._
 
 import scala.collection.mutable
 
-class LocationDao extends JsonFormats {
+class LocationDao extends JsonFormats with Dao {
   private val locations = new mutable.HashMap[Int, Location]()
 
   // is it ok to hardcode size this way?
@@ -21,7 +21,7 @@ class LocationDao extends JsonFormats {
 
   def read(id: Int): Option[Location] = locations.get(id)
 
-  def json(id: Int): Array[Byte] = jsons(id)
+  override def json(id: Int): Array[Byte] = jsons(id)
 
   //noinspection UnitInMap
   def update(id: Int, update: LocationUpdate): Option[Unit] = {

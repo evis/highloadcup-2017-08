@@ -5,11 +5,6 @@ import java.time.{LocalDateTime, ZoneOffset}
 
 import akka.actor.{ActorSystem, Props}
 import better.files.File
-import colossus.IOSystem
-import colossus.core.ServerContext
-import colossus.protocols.http
-import colossus.protocols.http.server.{HttpServer, Initializer, RequestHandler}
-import colossus.service.GenRequestHandler.PartialHandler
 import com.github.evis.highloadcup2017.api._
 import com.github.evis.highloadcup2017.dao.{LocationDao, UserDao, VisitDao}
 import com.typesafe.scalalogging.StrictLogging
@@ -48,20 +43,7 @@ object Main extends App with StrictLogging {
   val (maxUserId, maxLocationId, maxVisitId) =
     new InitialDataLoader(userDao, locationDao, visitDao).load("/tmp/data/data.zip")
 
-  implicit val ioSystem = IOSystem()
-
-  val httpHandle = new ColossusHandler(
+  new RapidoidHandler(
     userDao, locationDao, visitDao, postActor, maxUserId, maxLocationId, maxVisitId, isRateRun
-  ).httpHandle
-
-  HttpServer.start("server", port) {
-    new Initializer(_) {
-      override def onConnect: (ServerContext) => RequestHandler =
-        new RequestHandler(_) {
-          override protected def handle: PartialHandler[http.Http] = {
-            httpHandle
-          }
-        }
-    }
-  }
+  ).listen(port)
 }
