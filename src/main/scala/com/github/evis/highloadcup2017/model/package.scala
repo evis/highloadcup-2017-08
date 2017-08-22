@@ -4,8 +4,8 @@ import scala.language.implicitConversions
 
 package object model {
 
-  implicit def intToUserVisit(int: Option[Int]): Option[UserVisit] =
-    int.map(UserVisit(-1, -1, -1, _, null, null, -1))
+  /*implicit def intToUserVisit(int: Option[Int]): Option[UserVisit] =
+    int.map(UserVisit(-1, -1, -1, _, null, null, -1))*/
 
   implicit def intToLocationVisit(int: Option[Int]): Option[LocationVisit] =
     int.map(LocationVisit(-1, -1, -1, _, -1, 'g'))

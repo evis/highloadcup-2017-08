@@ -2,8 +2,6 @@ package com.github.evis.highloadcup2017.model
 
 import com.github.evis.highloadcup2017.dao.LocationDao
 
-case class UserVisits(visits: Iterable[UserVisit])
-
 case class UserVisit(visitId: Int,
                      locationId: Int,
                      mark: Int,
