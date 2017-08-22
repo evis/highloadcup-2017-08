@@ -9,8 +9,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.rapidoid.buffer.Buf
 import org.rapidoid.bytes.BytesUtil
 import org.rapidoid.bytes.BytesUtil.startsWith
-import org.rapidoid.http.HttpStatus.{DONE, NOT_FOUND}
+import org.rapidoid.http.HttpStatus.DONE
 import org.rapidoid.http.MediaType.APPLICATION_JSON
+import org.rapidoid.http.impl.lowlevel.HttpIO
 import org.rapidoid.http.{AbstractHttpServer, HttpStatus}
 import org.rapidoid.net.abstracts.Channel
 import org.rapidoid.net.impl.RapidoidHelper
@@ -41,7 +42,7 @@ class RapidoidHandler(userDao: UserDao,
       if (startsWithUsers) doGetUsers()
       else if (startsWithLocations) doGetLocations()
       else if (startsWithVisits) doGetVisits()
-      else NOT_FOUND
+      else sendNotFound()
 
     def doPost() = {
       val json = body.parseJson
@@ -50,7 +51,7 @@ class RapidoidHandler(userDao: UserDao,
         if (startsWithUsers) doPostUsers(json)
         else if (startsWithLocations) doPostLocations(json)
         else if (startsWithVisits) doPostVisits(json)
-        else NOT_FOUND
+        else sendNotFound()
       cleanIfPostsDone()
       result
     }
@@ -69,12 +70,12 @@ class RapidoidHandler(userDao: UserDao,
       try {
         val id = extractUserId
         if (id == -1)
-          NOT_FOUND
+          sendNotFound()
         else {
           ???
         }
       } catch {
-        case NonFatal(_) => NOT_FOUND
+        case NonFatal(_) => sendNotFound()
       }
     }
 
@@ -125,15 +126,15 @@ class RapidoidHandler(userDao: UserDao,
         if (maxUserIdCounter.get() >= id) {
           postActor ! (id, update)
           sendOk()
-        } else NOT_FOUND
+        } else sendNotFound()
       } catch {
-        case _: NumberFormatException => NOT_FOUND
+        case _: NumberFormatException => sendNotFound()
       }
     }
 
     def doGetEntity(dao: Dao, prefix: Array[Byte], maxId: Int) =
       try doGetEntityImpl(dao, getEntityId(prefix), maxId)
-      catch { case NonFatal(_) => NOT_FOUND }
+      catch { case NonFatal(_) => sendNotFound() }
 
     def doGetEntityImpl(dao: Dao, id: Int, maxId: Int) = {
       // it's volatile!
@@ -142,13 +143,20 @@ class RapidoidHandler(userDao: UserDao,
       if (id <= maxId)
         ok(ctx, true, dao.json(id), APPLICATION_JSON)
       else
-        NOT_FOUND
+        sendNotFound()
     }
 
     def sendOk() = ok(ctx, false, okBody, APPLICATION_JSON)
 
+    def sendNotFound() = {
+      startResponse(ctx, 404, helper.isKeepAlive.value)
+      HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
+      DONE
+    }
+
     def sendBadRequest() = {
-      ctx.write(badRequest)
+      startResponse(ctx, 400, helper.isKeepAlive.value)
+      HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
       DONE
     }
 
@@ -166,7 +174,7 @@ class RapidoidHandler(userDao: UserDao,
 
     if (helper.isGet.value) doGet()
     else if (matches(buf, helper.verb, Post)) doPost()
-    else NOT_FOUND
+    else sendNotFound()
   }
 
   private val Users = "/users/".getBytes
