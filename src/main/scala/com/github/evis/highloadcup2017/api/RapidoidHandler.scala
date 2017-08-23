@@ -156,12 +156,17 @@ class RapidoidHandler(userDao: UserDao,
       //noinspection ScalaUselessExpression
       maxVisitId
       if (id <= maxId)
-        ok(ctx, false, dao.json(id), APPLICATION_JSON)
+        sendOk(dao.json(id))
       else
         sendNotFound()
     }
 
-    def sendOk(body: Array[Byte] = okBody) = ok(ctx, false, body, APPLICATION_JSON)
+    def sendOk(body: Array[Byte] = okBody) = {
+      startResponse(ctx, false)
+      writeBody(ctx, body, APPLICATION_JSON)
+      ctx.close()
+      ASYNC
+    }
 
     def sendNotFound() = {
       startResponse(ctx, 404, false)
