@@ -15,6 +15,7 @@ import org.rapidoid.http.impl.lowlevel.HttpIO
 import org.rapidoid.http.{AbstractHttpServer, HttpStatus}
 import org.rapidoid.net.abstracts.Channel
 import org.rapidoid.net.impl.RapidoidHelper
+import spray.json.JsonParser.ParsingException
 import spray.json._
 
 import scala.annotation.tailrec
@@ -57,6 +58,7 @@ class RapidoidHandler(userDao: UserDao,
         result
       } catch {
         case _: DeserializationException => sendBadRequest()
+        case _: ParsingException => sendBadRequest()
       }
     }
 
