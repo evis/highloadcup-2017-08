@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.rapidoid.buffer.Buf
 import org.rapidoid.bytes.BytesUtil
 import org.rapidoid.bytes.BytesUtil.startsWith
-import org.rapidoid.http.HttpStatus.DONE
+import org.rapidoid.http.HttpStatus.ASYNC
 import org.rapidoid.http.MediaType.APPLICATION_JSON
 import org.rapidoid.http.impl.lowlevel.HttpIO
 import org.rapidoid.http.{AbstractHttpServer, HttpStatus}
@@ -151,13 +151,15 @@ class RapidoidHandler(userDao: UserDao,
     def sendNotFound() = {
       startResponse(ctx, 404, false)
       HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
-      DONE
+      ctx.close()
+      ASYNC
     }
 
     def sendBadRequest() = {
       startResponse(ctx, 400, false)
       HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
-      DONE
+      ctx.close()
+      ASYNC
     }
 
     def getEntityId(prefix: Array[Byte]) = path.substring(prefix.length).toInt
