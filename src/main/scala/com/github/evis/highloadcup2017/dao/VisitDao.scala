@@ -176,16 +176,15 @@ class VisitDao(userDao: UserDao,
       fromAge.fold(true)(_ <= visit.age) &&
         toAge.fold(true)(_ > visit.age) &&
         gender.fold(true)(_ == visit.gender))
-    val count = found.size
-    val avg =
-      if (count == 0) 0
-      else found.foldLeft(0.0)((acc, visit) => acc + visit.mark) / count
+    val (count, sum) = found.foldLeft(0.0 -> 0.0) {
+      case ((c, s), visit) => c + 1 -> (s + visit.mark)
+    }
     val scale = 5
-    val result = BigDecimal(avg).setScale(scale, HALF_UP).toDouble.toString.getBytes
+    val result = BigDecimal(sum / count).setScale(scale, HALF_UP).toDouble.toString.getBytes
     // don't allocate each time?
     val buffer = ByteBuffer.wrap(Array.fill[Byte](
-      jsonAvgPrefix.length // for double
-        + result.length
+      jsonAvgPrefix.length
+        + result.length // for double
         + 1 // for jsonAvgSuffix
     )(0))
     buffer.put(jsonAvgPrefix)
