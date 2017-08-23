@@ -1,5 +1,6 @@
 package com.github.evis.highloadcup2017.api
 
+import java.net.URLDecoder
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{ActorRef, PoisonPill}
@@ -193,7 +194,8 @@ class RapidoidHandler(userDao: UserDao,
       var valueBuilder = new StringBuilder
       var beforeQM = true
       var beforeEQ = true
-      val init = path.foldLeft(Map.empty[String, String]) { (acc, c) =>
+      val uri = URLDecoder.decode(BytesUtil.get(buf.bytes(), helper.uri), "UTF-8")
+      val init = uri.foldLeft(Map.empty[String, String]) { (acc, c) =>
         if (beforeQM) {
           if (c == '?') {
             beforeQM = false
@@ -204,7 +206,7 @@ class RapidoidHandler(userDao: UserDao,
         } else {
           if (beforeEQ) {
             if (c == '=') {
-              beforeEQ = true
+              beforeEQ = false
               acc
             } else {
               keyBuilder.append(c)
@@ -212,7 +214,7 @@ class RapidoidHandler(userDao: UserDao,
             }
           } else {
             if (c == '&') {
-              beforeEQ = false
+              beforeEQ = true
               val key = keyBuilder.toString()
               val value = valueBuilder.toString()
               keyBuilder = new StringBuilder
