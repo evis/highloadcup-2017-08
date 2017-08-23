@@ -43,14 +43,13 @@ case class UserVisit(visitId: Int,
 object UserVisit {
   def genJson(mark: Int, visitedAt: Int, place: String): Array[Byte] = {
     val builder = new StringBuilder
-    builder.append("{\"mark\':")
+    builder.append("{\"mark\":")
     builder.append(mark)
-    builder.append(",\"visitedAt\":")
+    builder.append(",\"visited_at\":")
     builder.append(visitedAt)
     builder.append(",\"place\":\"")
     builder.append(place)
     builder.append("\"}")
-    builder.append(Array[Byte]())
     builder.result().getBytes
   }
 }

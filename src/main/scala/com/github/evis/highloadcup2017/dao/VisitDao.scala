@@ -157,10 +157,11 @@ class VisitDao(userDao: UserDao,
         buffer.put(visit)
       }
     }
+    buffer.put(jsonVisitsPostfix)
     buffer.array()
   }
 
-  private val jsonVisitsPrefix = """{"visits":[}""".getBytes
+  private val jsonVisitsPrefix = """{"visits":[""".getBytes
   private val jsonVisitsPostfix = "]}".getBytes
   private val comma = ','.toByte
 
@@ -193,7 +194,7 @@ class VisitDao(userDao: UserDao,
     buffer.array()
   }
 
-  private val jsonAvgPrefix = """{"avg":}""".getBytes
+  private val jsonAvgPrefix = """{"avg":""".getBytes
   private val jsonAvgSuffix = '}'.toByte
 
   def cleanAfterPost(): Unit = {
