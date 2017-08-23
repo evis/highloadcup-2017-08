@@ -19,7 +19,6 @@ import spray.json.JsonParser.ParsingException
 import spray.json._
 
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 
 class RapidoidHandler(userDao: UserDao,
                       locationDao: LocationDao,
@@ -46,20 +45,15 @@ class RapidoidHandler(userDao: UserDao,
       else sendNotFound()
 
     def doPost() = {
-      try {
-        val json = body.parseJson
-        posts.getAndIncrement()
-        val result =
-          if (startsWithUsers) doPostUsers(json)
-          else if (startsWithLocations) doPostLocations(json)
-          else if (startsWithVisits) doPostVisits(json)
-          else sendNotFound()
-        cleanIfPostsDone()
-        result
-      } catch {
-        case _: DeserializationException => sendBadRequest()
-        case _: ParsingException => sendBadRequest()
-      }
+      val json = body.parseJson
+      posts.getAndIncrement()
+      val result =
+        if (startsWithUsers) doPostUsers(json)
+        else if (startsWithLocations) doPostLocations(json)
+        else if (startsWithVisits) doPostVisits(json)
+        else sendNotFound()
+      cleanIfPostsDone()
+      result
     }
 
     def doGetUsers() =
@@ -73,20 +67,43 @@ class RapidoidHandler(userDao: UserDao,
     def doGetVisits() = doGetEntity(visitDao, Visits, maxVisitId)
 
     def doGetUserVisits() = {
-      try {
-        val id = extractUserId
-        if (id == -1)
-          sendNotFound()
-        else {
-          sendBadRequest() // TODO
-        }
-      } catch {
-        case NonFatal(_) => sendNotFound()
-      }
+      val id = extractUserId
+      val params = extractParams
+      // it's volatile!
+      //noinspection ScalaUselessExpression
+      maxVisitId
+      if (id <= maxUserId)
+        sendOk(visitDao.userVisits(
+          id,
+          params.get("fromDate").map(_.toInt),
+          params.get("toDate").map(_.toInt),
+          params.get("country").map(_.toString),
+          params.get("toDistance").map(_.toInt)
+        ))
+      else sendNotFound()
     }
 
     def doGetLocationAvg() = {
-      sendBadRequest() // TODO
+      val id = extractLocationId
+      val params = extractParams
+      // it's volatile!
+      //noinspection ScalaUselessExpression
+      maxVisitId
+      if (id <= maxLocationId)
+        sendOk(visitDao.locationAvg(
+          id,
+          params.get("fromDate").map(_.toInt),
+          params.get("toDate").map(_.toInt),
+          params.get("fromAge").map(_.toInt),
+          params.get("toAge").map(_.toInt),
+          params.get("gender").map(s =>
+            if (s.isEmpty || s.length > 1 || (s.head != 'm' && s.head != 'f'))
+              deserializationError("")
+            else
+              s.head
+          )
+        ))
+      else sendNotFound()
     }
 
     def doPostUsers(json: JsValue) =
@@ -123,20 +140,15 @@ class RapidoidHandler(userDao: UserDao,
                                           prefix: Array[Byte],
                                           maxIdCounter: AtomicInteger) = {
       val update = updateReader.read(json)
-      try {
-        val id = getEntityId(prefix)
-        if (maxUserIdCounter.get() >= id) {
-          postActor ! (id, update)
-          sendOk()
-        } else sendNotFound()
-      } catch {
-        case _: NumberFormatException => sendNotFound()
-      }
+      val id = getEntityId(prefix)
+      if (maxUserIdCounter.get() >= id) {
+        postActor ! (id, update)
+        sendOk()
+      } else sendNotFound()
     }
 
     def doGetEntity(dao: Dao, prefix: Array[Byte], maxId: Int) =
-      try doGetEntityImpl(dao, getEntityId(prefix), maxId)
-      catch { case NonFatal(_) => sendNotFound() }
+      doGetEntityImpl(dao, getEntityId(prefix), maxId)
 
     def doGetEntityImpl(dao: Dao, id: Int, maxId: Int) = {
       // it's volatile!
@@ -148,7 +160,7 @@ class RapidoidHandler(userDao: UserDao,
         sendNotFound()
     }
 
-    def sendOk() = ok(ctx, false, okBody, APPLICATION_JSON)
+    def sendOk(body: Array[Byte] = okBody) = ok(ctx, false, body, APPLICATION_JSON)
 
     def sendNotFound() = {
       startResponse(ctx, 404, false)
@@ -176,9 +188,58 @@ class RapidoidHandler(userDao: UserDao,
       case _ => -1
     }
 
-    if (helper.isGet.value) doGet()
-    else if (matches(buf, helper.verb, Post)) doPost()
-    else sendNotFound()
+    def extractParams = {
+      var keyBuilder = new StringBuilder
+      var valueBuilder = new StringBuilder
+      var beforeQM = true
+      var beforeEQ = true
+      val init = path.foldLeft(Map.empty[String, String]) { (acc, c) =>
+        if (beforeQM) {
+          if (c == '?') {
+            beforeQM = false
+            acc
+          } else {
+            acc
+          }
+        } else {
+          if (beforeEQ) {
+            if (c == '=') {
+              beforeEQ = true
+              acc
+            } else {
+              keyBuilder.append(c)
+              acc
+            }
+          } else {
+            if (c == '&') {
+              beforeEQ = false
+              val key = keyBuilder.toString()
+              val value = valueBuilder.toString()
+              keyBuilder = new StringBuilder
+              valueBuilder = new StringBuilder
+              acc + (key -> value)
+            } else {
+              valueBuilder.append(c)
+              acc
+            }
+          }
+        }
+      }
+      if (keyBuilder.nonEmpty && valueBuilder.nonEmpty)
+        init + (keyBuilder.toString() -> valueBuilder.toString())
+      else
+        init
+    }
+
+    try {
+      if (helper.isGet.value) doGet()
+      else if (matches(buf, helper.verb, Post)) doPost()
+      else sendNotFound()
+    } catch {
+      case _: DeserializationException => sendBadRequest()
+      case _: ParsingException => sendBadRequest()
+      case _: NumberFormatException => sendNotFound()
+    }
   }
 
   private val Users = "/users/".getBytes
