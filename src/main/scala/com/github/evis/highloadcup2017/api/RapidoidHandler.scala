@@ -75,13 +75,17 @@ class RapidoidHandler(userDao: UserDao,
       //noinspection ScalaUselessExpression
       maxVisitId
       if (id <= maxUserId)
-        sendOk(visitDao.userVisits(
-          id,
-          params.get("fromDate").map(_.toInt),
-          params.get("toDate").map(_.toInt),
-          params.get("country").map(_.toString),
-          params.get("toDistance").map(_.toInt)
-        ))
+        try {
+          sendOk(visitDao.userVisits(
+            id,
+            params.get("fromDate").map(_.toInt),
+            params.get("toDate").map(_.toInt),
+            params.get("country").map(_.toString),
+            params.get("toDistance").map(_.toInt)
+          ))
+        } catch {
+          case _: NumberFormatException => deserializationError("")
+        }
       else sendNotFound()
     }
 
@@ -92,19 +96,23 @@ class RapidoidHandler(userDao: UserDao,
       //noinspection ScalaUselessExpression
       maxVisitId
       if (id <= maxLocationId)
-        sendOk(visitDao.locationAvg(
-          id,
-          params.get("fromDate").map(_.toInt),
-          params.get("toDate").map(_.toInt),
-          params.get("fromAge").map(_.toInt),
-          params.get("toAge").map(_.toInt),
-          params.get("gender").map(s =>
-            if (s.isEmpty || s.length > 1 || (s.head != 'm' && s.head != 'f'))
-              deserializationError("")
-            else
-              s.head
-          )
-        ))
+        try {
+          sendOk(visitDao.locationAvg(
+            id,
+            params.get("fromDate").map(_.toInt),
+            params.get("toDate").map(_.toInt),
+            params.get("fromAge").map(_.toInt),
+            params.get("toAge").map(_.toInt),
+            params.get("gender").map(s =>
+              if (s.isEmpty || s.length > 1 || (s.head != 'm' && s.head != 'f'))
+                deserializationError("")
+              else
+                s.head
+            )
+          ))
+        } catch {
+          case _: NumberFormatException => deserializationError("")
+        }
       else sendNotFound()
     }
 
