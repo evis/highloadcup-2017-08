@@ -45,8 +45,8 @@ class RapidoidHandler(userDao: UserDao,
       else sendNotFound()
 
     def doPost() = {
-      val json = body.parseJson
       posts.getAndIncrement()
+      val json = body.parseJson
       val result =
         if (startsWithUsers) doPostUsers(json)
         else if (startsWithLocations) doPostLocations(json)
