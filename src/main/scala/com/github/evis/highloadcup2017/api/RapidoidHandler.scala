@@ -20,8 +20,6 @@ import org.rapidoid.util.Constants.CR_LF
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
-import scala.annotation.tailrec
-
 class RapidoidHandler(userDao: UserDao,
                       locationDao: LocationDao,
                       visitDao: VisitDao,
@@ -139,7 +137,7 @@ class RapidoidHandler(userDao: UserDao,
                                     entityReader: JsonReader[T],
                                     maxIdCounter: AtomicInteger) = {
       val user = entityReader.read(json)
-      tryUpdateMax(maxUserIdCounter, user.id)
+      maxIdCounter.getAndIncrement()
       postActor ! user
       cleanIfPostsDone()
       sendOk()
@@ -151,7 +149,7 @@ class RapidoidHandler(userDao: UserDao,
                                           maxIdCounter: AtomicInteger) = {
       val update = updateReader.read(json)
       val id = getEntityId(prefix)
-      if (maxUserIdCounter.get() >= id) {
+      if (maxIdCounter.get() >= id) {
         postActor ! (id, update)
         sendOk()
       } else sendNotFound()
@@ -274,17 +272,6 @@ class RapidoidHandler(userDao: UserDao,
       maxLocationId = maxLocationIdCounter.get()
       maxVisitId = maxVisitIdCounter.get()
     }
-  }
-
-  private def tryUpdateMax(max: AtomicInteger, newMax: Int) {
-    @tailrec
-    def cycle(): Unit = {
-      val prev = max.get()
-      if (newMax > prev && !max.compareAndSet(prev, newMax))
-        cycle()
-    }
-
-    cycle()
   }
 
   private val maxUserIdCounter = new AtomicInteger(initMaxUserId)
