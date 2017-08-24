@@ -180,7 +180,9 @@ class VisitDao(userDao: UserDao,
       case ((c, s), visit) => c + 1 -> (s + visit.mark)
     }
     val scale = 5
-    val result = BigDecimal(sum / count).setScale(scale, HALF_UP).toDouble.toString.getBytes
+    val result =
+      if (count == 0) "0.0".getBytes
+      else BigDecimal(sum / count).setScale(scale, HALF_UP).toDouble.toString.getBytes
     // don't allocate each time?
     val buffer = ByteBuffer.wrap(Array.fill[Byte](
       jsonAvgPrefix.length
