@@ -25,7 +25,6 @@ class PostActor(userDao: UserDao, locationDao: LocationDao, visitDao: VisitDao) 
         userDao.cleanAfterPost()
         locationDao.cleanAfterPost()
         visitDao.cleanAfterPost()
-        System.gc()
     }
   }
 }
