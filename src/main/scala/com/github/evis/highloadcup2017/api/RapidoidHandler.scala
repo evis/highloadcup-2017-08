@@ -136,9 +136,9 @@ class RapidoidHandler(userDao: UserDao,
     def doCreateEntity[T <: Entity](json: JsValue,
                                     entityReader: JsonReader[T],
                                     maxIdCounter: AtomicInteger) = {
-      val user = entityReader.read(json)
+      val entity = entityReader.read(json)
       maxIdCounter.getAndIncrement()
-      postActor ! user
+      postActor ! entity
       cleanIfPostsDone()
       sendOk()
     }
