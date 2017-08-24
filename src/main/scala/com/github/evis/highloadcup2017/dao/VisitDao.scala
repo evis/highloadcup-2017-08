@@ -91,7 +91,6 @@ class VisitDao(userDao: UserDao,
       val newUserKey = Key(newUserId, newTimestamp, visit.id)
       val newUserVisit = oldUserVisit.`with`(update, locationDao)
       if (oldUserKey != newUserKey) {
-      } else {
         userVisits.remove(oldUserKey)
       }
       userVisits.put(newUserKey, newUserVisit)
