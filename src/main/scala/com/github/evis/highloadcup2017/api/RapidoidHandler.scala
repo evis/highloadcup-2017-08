@@ -10,12 +10,13 @@ import com.typesafe.scalalogging.StrictLogging
 import org.rapidoid.buffer.Buf
 import org.rapidoid.bytes.BytesUtil
 import org.rapidoid.bytes.BytesUtil.startsWith
-import org.rapidoid.http.HttpStatus.ASYNC
+import org.rapidoid.http.HttpStatus.DONE
 import org.rapidoid.http.MediaType.APPLICATION_JSON
 import org.rapidoid.http.impl.lowlevel.HttpIO
 import org.rapidoid.http.{AbstractHttpServer, HttpStatus}
 import org.rapidoid.net.abstracts.Channel
 import org.rapidoid.net.impl.RapidoidHelper
+import org.rapidoid.util.Constants.CR_LF
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
@@ -161,25 +162,20 @@ class RapidoidHandler(userDao: UserDao,
         sendNotFound()
     }
 
-    def sendOk(body: Array[Byte] = okBody) = {
-      startResponse(ctx, false)
-      writeBody(ctx, body, APPLICATION_JSON)
-      ctx.close()
-      ASYNC
-    }
+    def sendOk(body: Array[Byte] = okBody) =
+      ok(ctx, helper.isKeepAlive.value, body, APPLICATION_JSON)
 
-    def sendNotFound() = {
-      startResponse(ctx, 404, false)
-      HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
-      ctx.close()
-      ASYNC
-    }
+    def sendNotFound() =
+      send(404)
 
-    def sendBadRequest() = {
-      startResponse(ctx, 400, false)
+    def sendBadRequest() =
+      send(400)
+
+    def send(code: Int) = {
+      startResponse(ctx, code, helper.isKeepAlive.value)
       HttpIO.INSTANCE.writeContentLengthHeader(ctx, 0)
-      ctx.close()
-      ASYNC
+      ctx.write(CR_LF)
+      DONE
     }
 
     def getEntityId(prefix: Array[Byte]) = path.substring(prefix.length).toInt
