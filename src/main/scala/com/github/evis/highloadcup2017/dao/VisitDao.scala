@@ -17,8 +17,7 @@ class VisitDao(userDao: UserDao,
                generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
   private val visits = mutable.HashMap[Int, Visit]()
 
-  // is it ok to hardcode size this way?
-  private val jsons = Array.fill[Array[Byte]](1200000)(null)
+  private val jsons = mutable.Map[Int, Array[Byte]]()
 
   // key of inner map is timestamp
   private val userVisits =

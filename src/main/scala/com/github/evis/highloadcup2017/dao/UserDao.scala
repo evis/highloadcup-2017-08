@@ -9,8 +9,7 @@ import scala.collection.mutable
 class UserDao extends JsonFormats with Dao {
   private val users = new mutable.HashMap[Int, User]()
 
-  // is it ok to hardcode size this way?
-  private val jsons = Array.fill[Array[Byte]](120000)(null)
+  private val jsons = mutable.Map[Int, Array[Byte]]()
 
   private var visitDao: VisitDao = _
 
