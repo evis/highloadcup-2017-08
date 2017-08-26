@@ -37,6 +37,7 @@ dockerfile in docker := {
       "-XX:+UseG1GC",
       "-Xms4g",
       "-Xmx4g",
+      "-Djava.lang.Integer.IntegerCache.high=11000000",
       "-cp", classpathString, mainclass, "80")
   }
 }
