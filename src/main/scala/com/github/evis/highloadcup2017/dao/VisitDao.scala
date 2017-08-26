@@ -118,8 +118,8 @@ class VisitDao(userDao: UserDao,
                   fromAge: Option[Int],
                   toAge: Option[Int],
                   gender: Option[Char]): Array[Byte] = {
-    val found = locationVisits.get(location).fold(Iterable[Int]())(
-      _.map { visitId =>
+    val found = locationVisits.get(location).fold(Seq[Int]())(
+      _.toSeq.map { visitId =>
         val visit = visits(visitId)
         // proper None handling?
         val user = userDao.read(visit.user).getOrElse(deserializationError(""))
