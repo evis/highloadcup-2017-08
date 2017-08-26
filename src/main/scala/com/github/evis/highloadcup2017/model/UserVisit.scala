@@ -8,10 +8,7 @@ case class UserVisit(visitId: Int,
                      visitedAt: Int,
                      place: String,
                      country: String,
-                     distance: Int,
-                     json: Array[Byte]) {
-
-  import UserVisit._
+                     distance: Int) {
 
   def `with`(update: VisitUpdate, locationDao: LocationDao): UserVisit = {
     val location =
@@ -26,7 +23,6 @@ case class UserVisit(visitId: Int,
       place = newPlace,
       country = location.fold(country)(_.country),
       distance = location.fold(distance)(_.distance),
-      json = genJson(newMark, newVisitedAt, newPlace)
     )
   }
 
@@ -34,10 +30,9 @@ case class UserVisit(visitId: Int,
     place = update.place.getOrElse(place),
     country = update.country.getOrElse(country),
     distance = update.distance.getOrElse(distance),
-    json = update.place.map(newPlace =>
-      genJson(mark, visitedAt, newPlace)
-    ).getOrElse(json)
   )
+
+  def json: Array[Byte] = UserVisit.genJson(mark, visitedAt, place)
 }
 
 object UserVisit {

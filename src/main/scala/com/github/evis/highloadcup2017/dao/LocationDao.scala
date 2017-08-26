@@ -9,18 +9,14 @@ import scala.collection.mutable
 class LocationDao extends JsonFormats with Dao {
   private val locations = new mutable.HashMap[Int, Location]()
 
-  private val jsons = mutable.Map[Int, Array[Byte]]()
-
   private var visitDao: VisitDao = _
 
-  def create(location: Location): Unit = {
+  def create(location: Location): Unit =
     locations += location.id -> location
-    jsons.update(location.id, location.toJson.compactPrint.getBytes)
-  }
 
   def read(id: Int): Option[Location] = locations.get(id)
 
-  override def json(id: Int): Array[Byte] = jsons(id)
+  override def json(id: Int): Array[Byte] = locations(id).toJson.compactPrint.getBytes
 
   //noinspection UnitInMap
   def update(id: Int, update: LocationUpdate): Option[Unit] = {
@@ -28,7 +24,6 @@ class LocationDao extends JsonFormats with Dao {
     read(id).map { location =>
       val updated = location `with` update
       locations.put(id, updated)
-      jsons.update(id, updated.toJson.compactPrint.getBytes)
     }
   }
 

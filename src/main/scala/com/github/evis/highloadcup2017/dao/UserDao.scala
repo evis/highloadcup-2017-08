@@ -9,18 +9,14 @@ import scala.collection.mutable
 class UserDao extends JsonFormats with Dao {
   private val users = new mutable.HashMap[Int, User]()
 
-  private val jsons = mutable.Map[Int, Array[Byte]]()
-
   private var visitDao: VisitDao = _
 
-  def create(user: User): Unit = {
+  def create(user: User): Unit =
     users += user.id -> user
-    jsons.update(user.id, user.toJson.compactPrint.getBytes)
-  }
 
   def read(id: Int): Option[User] = users.get(id)
 
-  def json(id: Int): Array[Byte] = jsons(id)
+  def json(id: Int): Array[Byte] = users(id).toJson.compactPrint.getBytes
 
   //noinspection UnitInMap
   def update(id: Int, update: UserUpdate): Option[Unit] = {
@@ -28,7 +24,6 @@ class UserDao extends JsonFormats with Dao {
     read(id).map { user =>
       val updated = user `with` update
       users.put(id, updated)
-      jsons.update(id, updated.toJson.compactPrint.getBytes)
     }
   }
 

@@ -17,8 +17,6 @@ class VisitDao(userDao: UserDao,
                generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
   private val visits = mutable.HashMap[Int, Visit]()
 
-  private val jsons = mutable.Map[Int, Array[Byte]]()
-
   // key of inner map is timestamp
   private val userVisitsIndex =
     mutable.Map.apply[Int, mutable.TreeMap[Int, Set[UserVisit]]]()
@@ -31,7 +29,6 @@ class VisitDao(userDao: UserDao,
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits += visit.id -> visit
-    jsons.update(visit.id, visit.toJson.compactPrint.getBytes)
     locationDao.read(visit.location) match {
       case Some(location) =>
         userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
@@ -44,7 +41,6 @@ class VisitDao(userDao: UserDao,
           location.place,
           location.country,
           location.distance,
-          UserVisit.genJson(visit.mark, visit.visitedAt, location.place)
         )
         val map = userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
         map.put(visit.visitedAt, map.get(visit.visitedAt).map(_ + uv).getOrElse(Set(uv)))
@@ -69,14 +65,13 @@ class VisitDao(userDao: UserDao,
 
   def read(id: Int): Option[Visit] = visits.get(id)
 
-  def json(id: Int): Array[Byte] = jsons(id)
+  def json(id: Int): Array[Byte] = visits(id).toJson.compactPrint.getBytes
 
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Option[Unit] =
     read(id).map { visit =>
       val updated = visit `with` update
       visits.put(id, updated)
-      jsons.update(id, updated.toJson.compactPrint.getBytes)
 
       // can not always update it
       userLocations(visit.user) -= visit.location
