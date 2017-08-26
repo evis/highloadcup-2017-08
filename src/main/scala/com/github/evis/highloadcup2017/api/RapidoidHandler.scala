@@ -285,5 +285,5 @@ class RapidoidHandler(userDao: UserDao,
 
   private val posts = new AtomicInteger()
 
-  private val maxPostsAmount = if (isRateRun) 12000 else 1000
+  private val maxPostsAmount = if (isRateRun) 40000 else 3000
 }
