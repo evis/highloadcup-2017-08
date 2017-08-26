@@ -20,10 +20,10 @@ class VisitDao(userDao: UserDao,
   private val jsons = mutable.Map[Int, Array[Byte]]()
 
   // key of inner map is timestamp
-  private val userVisits =
-    mutable.Map.apply[Int, mutable.TreeMap[Int, mutable.Set[UserVisit]]]()
+  private val userVisitsIndex =
+    mutable.Map.apply[Int, mutable.TreeMap[Int, Set[UserVisit]]]()
   private val locationVisits =
-    mutable.Map.apply[Int, mutable.TreeMap[Int, mutable.Set[LocationVisit]]]()
+    mutable.Map.apply[Int, mutable.TreeMap[Int, Set[LocationVisit]]]()
   // helper indexes for faster update
   private val userLocations = mutable.HashMap[Int, mutable.Set[Int]]()
   private val locationUsers = mutable.HashMap[Int, mutable.Set[Int]]()
@@ -36,8 +36,7 @@ class VisitDao(userDao: UserDao,
       case Some(location) =>
         userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
         locationUsers.getOrElseUpdate(visit.location, mutable.Set()) += visit.user
-        userVisits.getOrElseUpdate(visit.user, mutable.TreeMap())
-          .getOrElseUpdate(visit.visitedAt, mutable.Set()) += UserVisit(
+        val uv = UserVisit(
           visit.id,
           visit.location,
           visit.mark,
@@ -47,13 +46,14 @@ class VisitDao(userDao: UserDao,
           location.distance,
           UserVisit.genJson(visit.mark, visit.visitedAt, location.place)
         )
+        val map = userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
+        map.put(visit.visitedAt, map.get(visit.visitedAt).map(_ + uv).getOrElse(Set(uv)))
       case None =>
         // handle it with exception handler?
         throw new Exception(s"Location ${visit.location} not found")
     }
     userDao.read(visit.user).foreach { user =>
-      locationVisits.getOrElseUpdate(visit.location, mutable.TreeMap())
-        .getOrElseUpdate(visit.visitedAt, mutable.Set()) += LocationVisit(
+      val lv = LocationVisit(
         visit.user,
         visit.id,
         visit.mark,
@@ -62,6 +62,8 @@ class VisitDao(userDao: UserDao,
         LocalDateTime.ofEpochSecond(user.birthDate, 0, ZoneOffset.UTC).until(generationDateTime, YEARS).toInt,
         user.gender
       )
+      val map = locationVisits.getOrElseUpdate(visit.location, mutable.TreeMap())
+      map.put(visit.visitedAt, map.get(visit.visitedAt).map(_ + lv).getOrElse(Set(lv)))
     }
   }
 
@@ -86,17 +88,17 @@ class VisitDao(userDao: UserDao,
 
       val oldUserId = visit.user
       val oldTimestamp = visit.visitedAt
-      val oldUserVisits = userVisits(oldUserId)(oldTimestamp)
+      val oldUserVisits = userVisitsIndex(oldUserId)(oldTimestamp)
       val oldUserVisit = oldUserVisits.find(_.visitId == visit.id)
       val newUserId = update.user.getOrElse(oldUserId)
       val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
       oldUserVisit.foreach { ouv =>
         val newUserVisit = ouv.`with`(update, locationDao)
         if (oldUserId != newUserId || oldTimestamp != newTimestamp) {
-          oldUserVisits.remove(ouv)
+          userVisitsIndex(oldUserId).put(oldTimestamp, oldUserVisits - ouv)
         }
-        userVisits.getOrElseUpdate(newUserId, mutable.TreeMap())
-          .getOrElseUpdate(newTimestamp, mutable.Set()) += newUserVisit
+        val map = userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
+        map.put(newTimestamp, map.get(newTimestamp).map(_ + newUserVisit).getOrElse(Set(newUserVisit)))
       }
 
       val oldLocationId = visit.location
@@ -105,20 +107,20 @@ class VisitDao(userDao: UserDao,
       oldLocationVisits.foreach { olv =>
         val newLocationVisit = olv.`with`(update, userDao, generationDateTime)
         if (oldLocationId != newLocationId || oldTimestamp != newTimestamp) {
-          oldLocationVisits.remove(olv)
+          locationVisits(oldLocationId).put(oldTimestamp, oldLocationVisits - olv)
         }
-        locationVisits.getOrElseUpdate(newLocation, mutable.TreeMap())
-          .getOrElseUpdate(newTimestamp, mutable.Set()) += newLocationVisit
+        val map = locationVisits.getOrElseUpdate(newLocationId, mutable.TreeMap())
+        map.put(newTimestamp, map.get(newTimestamp).map(_ + newLocationVisit).getOrElse(Set(newLocationVisit)))
       }
     }
 
   def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
     locationUsers.get(locationId).foreach {
       _.foreach { user =>
-        userVisits(user).values.foreach { visitsSet =>
+        val map = userVisitsIndex(user)
+        map.foreach { case (key, visitsSet) =>
           for (visit <- visitsSet if visit.locationId == locationId) {
-            visitsSet.remove(visit)
-            visitsSet.add(visit `with` update)
+            map.update(key, visitsSet - visit + (visit `with` update))
           }
         }
       }
@@ -128,10 +130,10 @@ class VisitDao(userDao: UserDao,
   def updateUser(userId: Int, update: UserUpdate): Unit = {
     userLocations.get(userId).foreach {
       _.foreach { location =>
-        locationVisits(location).values.foreach { visitsSet =>
+        val map = locationVisits(location)
+        map.foreach { case (key, visitsSet) =>
           for (visit <- visitsSet if visit.userId == userId) {
-            visitsSet.remove(visit)
-            visitsSet.add(visit.`with`(update, generationDateTime))
+            map.update(key, visitsSet - visit + visit.`with`(update, generationDateTime))
           }
         }
       }
@@ -143,7 +145,7 @@ class VisitDao(userDao: UserDao,
                  toDate: Option[Int],
                  country: Option[String],
                  toDistance: Option[Int]): Array[Byte] = {
-    val filtered = userVisits.get(user).fold(Iterable[Array[Byte]]())(
+    val filtered = userVisitsIndex.get(user).fold(Iterable[Array[Byte]]())(
       _.rangeImpl(fromDate, toDate).mapValues(
         _.withFilter(userVisit =>
           toDistance.fold(true)(_ > userVisit.distance) &&
