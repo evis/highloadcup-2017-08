@@ -144,12 +144,14 @@ class VisitDao(userDao: UserDao,
                  toDate: Option[Int],
                  country: Option[String],
                  toDistance: Option[Int]): Array[Byte] = {
-    val filtered = userVisits(user).rangeImpl(fromDate, toDate).mapValues(
-      _.withFilter(userVisit =>
-        toDistance.fold(true)(_ > userVisit.distance) &&
-          country.fold(true)(_ == userVisit.country)
-      ).map(_.json)
-    ).flatMap(_._2)
+    val filtered = userVisits.get(user).fold(Iterable[Array[Byte]]())(
+      _.rangeImpl(fromDate, toDate).mapValues(
+        _.withFilter(userVisit =>
+          toDistance.fold(true)(_ > userVisit.distance) &&
+            country.fold(true)(_ == userVisit.country)
+        ).map(_.json)
+      ).flatMap(_._2)
+    )
     // don't allocate each time?
     val buffer = ByteBuffer.allocate(
       filtered.map(_.length).sum // for jsons
@@ -179,13 +181,15 @@ class VisitDao(userDao: UserDao,
                   fromAge: Option[Int],
                   toAge: Option[Int],
                   gender: Option[Char]): Array[Byte] = {
-    val found = locationVisits(location).rangeImpl(fromDate, toDate).mapValues(
-      _.withFilter(visit =>
-        fromAge.fold(true)(_ <= visit.age) &&
-          toAge.fold(true)(_ > visit.age) &&
-          gender.fold(true)(_ == visit.gender))
-        .map(_.mark)
-    ).flatMap(_._2)
+    val found = locationVisits.get(location).fold(Iterable[Int]())(
+      _.rangeImpl(fromDate, toDate).mapValues(
+        _.withFilter(visit =>
+          fromAge.fold(true)(_ <= visit.age) &&
+            toAge.fold(true)(_ > visit.age) &&
+            gender.fold(true)(_ == visit.gender))
+          .map(_.mark)
+      ).flatMap(_._2)
+    )
     val (count, sum) = found.foldLeft(0.0 -> 0.0) {
       case ((c, s), mark) => c + 1 -> (s + mark)
     }
