@@ -58,7 +58,7 @@ class VisitDao(userDao: UserDao,
         LocalDateTime.ofEpochSecond(user.birthDate, 0, ZoneOffset.UTC).until(generationDateTime, YEARS).toInt,
         user.gender
       )
-      locationVisits.put(visit.visitedAt,
+      locationVisits.put(visit.location,
         locationVisits.get(visit.location).map(_ - lv).getOrElse(Set(lv)))
     }
   }
