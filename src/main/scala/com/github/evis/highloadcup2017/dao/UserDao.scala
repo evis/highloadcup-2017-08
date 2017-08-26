@@ -20,7 +20,6 @@ class UserDao extends JsonFormats with Dao {
 
   //noinspection UnitInMap
   def update(id: Int, update: UserUpdate): Option[Unit] = {
-    visitDao.updateUser(id, update)
     read(id).map { user =>
       val updated = user `with` update
       users.put(id, updated)
@@ -30,7 +29,4 @@ class UserDao extends JsonFormats with Dao {
   def setVisitDao(visitDao: VisitDao): Unit =
     if (this.visitDao == null) this.visitDao = visitDao
     else throw new RuntimeException("setVisitDao() should be invoked once")
-
-  def cleanAfterPost(): Unit =
-    users.clear()
 }

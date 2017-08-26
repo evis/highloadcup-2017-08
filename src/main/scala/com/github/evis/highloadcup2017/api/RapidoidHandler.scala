@@ -3,7 +3,7 @@ package com.github.evis.highloadcup2017.api
 import java.net.URLDecoder
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{ActorRef, PoisonPill}
+import akka.actor.ActorRef
 import com.github.evis.highloadcup2017.dao.{Dao, LocationDao, UserDao, VisitDao}
 import com.github.evis.highloadcup2017.model.{Entity, EntityUpdate}
 import com.typesafe.scalalogging.StrictLogging
@@ -267,7 +267,6 @@ class RapidoidHandler(userDao: UserDao,
   private def cleanIfPostsDone() = {
     if (posts.get() == maxPostsAmount) {
       logger.debug("End of phase 2")
-      postActor ! PoisonPill
       maxUserId = maxUserIdCounter.get()
       maxLocationId = maxLocationIdCounter.get()
       maxVisitId = maxVisitIdCounter.get()

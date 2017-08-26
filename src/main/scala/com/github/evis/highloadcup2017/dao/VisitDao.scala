@@ -2,7 +2,6 @@ package com.github.evis.highloadcup2017.dao
 
 import java.nio.ByteBuffer
 import java.time._
-import java.time.temporal.ChronoUnit.YEARS
 
 import com.github.evis.highloadcup2017.api.JsonFormats
 import com.github.evis.highloadcup2017.model._
@@ -17,50 +16,19 @@ class VisitDao(userDao: UserDao,
                generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
   private val visits = mutable.HashMap[Int, Visit]()
 
-  // key of inner map is timestamp
-  private val userVisitsIndex =
-    mutable.Map.apply[Int, mutable.TreeMap[Int, Set[UserVisit]]]()
-  private val locationVisits =
-    mutable.Map.apply[Int, Set[LocationVisit]]()
-  // helper indexes for faster update
-  private val userLocations = mutable.HashMap[Int, mutable.Set[Int]]()
-  private val locationUsers = mutable.HashMap[Int, mutable.Set[Int]]()
+  // better to refactor with value types?
+  // user_id -> visited_at -> visit_id
+  private val userVisitsIndex = mutable.Map.apply[Int, mutable.TreeMap[Int, mutable.Set[Int]]]()
+  // location id -> visit_id
+  private val locationVisits = mutable.Map.apply[Int, mutable.Set[Int]]()
 
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits += visit.id -> visit
-    locationDao.read(visit.location) match {
-      case Some(location) =>
-        userLocations.getOrElseUpdate(visit.user, mutable.Set()) += visit.location
-        locationUsers.getOrElseUpdate(visit.location, mutable.Set()) += visit.user
-        val uv = UserVisit(
-          visit.id,
-          visit.location,
-          visit.mark,
-          visit.visitedAt,
-          location.place,
-          location.country,
-          location.distance,
-        )
-        val map = userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
-        map.put(visit.visitedAt, map.get(visit.visitedAt).map(_ + uv).getOrElse(Set(uv)))
-      case None =>
-        // handle it with exception handler?
-        throw new Exception(s"Location ${visit.location} not found")
-    }
-    userDao.read(visit.user).foreach { user =>
-      val lv = LocationVisit(
-        visit.user,
-        visit.id,
-        visit.mark,
-        visit.visitedAt,
-        // switch to datetimes everywhere?
-        LocalDateTime.ofEpochSecond(user.birthDate, 0, ZoneOffset.UTC).until(generationDateTime, YEARS).toInt,
-        user.gender
-      )
-      locationVisits.put(visit.location,
-        locationVisits.get(visit.location).map(_ - lv).getOrElse(Set(lv)))
-    }
+    userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
+      .getOrElseUpdate(visit.visitedAt, mutable.Set())
+      .add(visit.id)
+    locationVisits.getOrElseUpdate(visit.location, mutable.Set()).add(visit.id)
   }
 
   def read(id: Int): Option[Visit] = visits.get(id)
@@ -72,80 +40,54 @@ class VisitDao(userDao: UserDao,
     read(id).map { visit =>
       val updated = visit `with` update
       visits.put(id, updated)
-
-      // can not always update it
-      userLocations(visit.user) -= visit.location
-      locationUsers(visit.location) -= visit.user
-      val newUser = update.user.getOrElse(visit.user)
-      val newLocation = update.location.getOrElse(visit.location)
-      userLocations.getOrElseUpdate(newUser, mutable.Set()) += newLocation
-      locationUsers.getOrElseUpdate(newLocation, mutable.Set()) += newUser
-
+      // does this method need optimizition?
       val oldUserId = visit.user
       val oldTimestamp = visit.visitedAt
       val oldUserVisits = userVisitsIndex(oldUserId)(oldTimestamp)
-      val oldUserVisit = oldUserVisits.find(_.visitId == visit.id)
+      val oldUserVisit = oldUserVisits.find(_ == id)
       val newUserId = update.user.getOrElse(oldUserId)
       val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
-      oldUserVisit.foreach { ouv =>
-        val newUserVisit = ouv.`with`(update, locationDao)
+      oldUserVisit.foreach { _ =>
         if (oldUserId != newUserId || oldTimestamp != newTimestamp) {
-          userVisitsIndex(oldUserId).put(oldTimestamp, oldUserVisits - ouv)
+          oldUserVisits.remove(id)
         }
-        val map = userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
-        map.put(newTimestamp, map.get(newTimestamp).map(_ + newUserVisit).getOrElse(Set(newUserVisit)))
+        userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
+          .getOrElseUpdate(newTimestamp, mutable.Set()).add(id)
       }
-
       val oldLocationId = visit.location
       val oldLocationVisits = locationVisits(oldLocationId)
       val newLocationId = update.location.getOrElse(oldLocationId)
-      oldLocationVisits.foreach { olv =>
-        val newLocationVisit = olv.`with`(update, userDao, generationDateTime)
-        if (oldLocationId != newLocationId) {
-          locationVisits.put(oldLocationId, locationVisits(oldLocationId) - olv)
-        }
-        locationVisits.put(newLocationId,
-          locationVisits.get(newLocationId).map(_ + newLocationVisit).getOrElse(Set(newLocationVisit)))
+      if (oldLocationId != newLocationId) {
+        oldLocationVisits.remove(id)
       }
+      locationVisits.getOrElseUpdate(newLocationId, mutable.Set()).add(id)
     }
-
-  def updateLocation(locationId: Int, update: LocationUpdate): Unit = {
-    locationUsers.get(locationId).foreach {
-      _.foreach { user =>
-        val map = userVisitsIndex(user)
-        map.foreach { case (key, visitsSet) =>
-          for (visit <- visitsSet if visit.locationId == locationId) {
-            map.update(key, visitsSet - visit + (visit `with` update))
-          }
-        }
-      }
-    }
-  }
-
-  def updateUser(userId: Int, update: UserUpdate): Unit = {
-    userLocations.get(userId).foreach {
-      _.foreach { location =>
-        val set = locationVisits(location)
-        for (visit <- set if visit.userId == userId) {
-          locationVisits.update(location,
-            locationVisits(location) - visit + visit.`with`(update, generationDateTime))
-        }
-      }
-    }
-  }
 
   def userVisits(user: Int,
                  fromDate: Option[Int],
                  toDate: Option[Int],
                  country: Option[String],
                  toDistance: Option[Int]): Array[Byte] = {
+    // optimize?
     val filtered = userVisitsIndex.get(user).fold(Iterable[Array[Byte]]())(
-      _.rangeImpl(fromDate, toDate).mapValues(
-        _.withFilter(userVisit =>
+      _.rangeImpl(fromDate, toDate).values.flatMap(
+        _.map { visitId =>
+          val visit = visits(visitId)
+          val location = locationDao.read(visit.location).getOrElse(
+            // proper None handling?
+            deserializationError("")
+          )
+          UserVisit(
+            visit.mark,
+            visit.visitedAt,
+            location.place,
+            location.country,
+            location.distance)
+        }.withFilter(userVisit =>
           toDistance.fold(true)(_ > userVisit.distance) &&
             country.fold(true)(_ == userVisit.country)
         ).map(_.json)
-      ).flatMap(_._2)
+      )
     )
     // don't allocate each time?
     val buffer = ByteBuffer.allocate(
@@ -177,7 +119,16 @@ class VisitDao(userDao: UserDao,
                   toAge: Option[Int],
                   gender: Option[Char]): Array[Byte] = {
     val found = locationVisits.get(location).fold(Iterable[Int]())(
-      _.withFilter(visit =>
+      _.map { visitId =>
+        val visit = visits(visitId)
+        // proper None handling?
+        val user = userDao.read(visit.user).getOrElse(deserializationError(""))
+        LocationVisit(
+          visit.mark,
+          visit.visitedAt,
+          user.age(generationDateTime),
+          user.gender)
+      }.withFilter(visit =>
         fromDate.fold(true)(_ < visit.visitedAt) &&
           toDate.fold(true)(_ > visit.visitedAt) &&
           fromAge.fold(true)(_ <= visit.age) &&
@@ -206,10 +157,4 @@ class VisitDao(userDao: UserDao,
 
   private val jsonAvgPrefix = """{"avg":""".getBytes
   private val jsonAvgSuffix = '}'.toByte
-
-  def cleanAfterPost(): Unit = {
-    userLocations.clear()
-    locationUsers.clear()
-    visits.clear()
-  }
 }

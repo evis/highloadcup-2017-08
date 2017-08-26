@@ -20,7 +20,6 @@ class LocationDao extends JsonFormats with Dao {
 
   //noinspection UnitInMap
   def update(id: Int, update: LocationUpdate): Option[Unit] = {
-    visitDao.updateLocation(id, update)
     read(id).map { location =>
       val updated = location `with` update
       locations.put(id, updated)
