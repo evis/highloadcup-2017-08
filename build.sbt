@@ -34,7 +34,7 @@ dockerfile in docker := {
     expose(80)
     // On launch run Java with the classpath and the main class
     entryPoint("java",
-      "-XX:+UseConcMarkSweepGC",
+      "-XX:+UseG1GC",
       "-Xmx3g",
       "-Xmn512m",
       "-XX:MaxGCPauseMillis=100",
