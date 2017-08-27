@@ -49,14 +49,14 @@ class RapidoidHandler(userDao: UserDao,
       else sendNotFound()
 
     def doPost() = {
-      posts.getAndIncrement()
+      val postsAmount = posts.incrementAndGet()
       val json = body.parseJson
       val result =
         if (startsWithUsers) doPostUsers(json)
         else if (startsWithLocations) doPostLocations(json)
         else if (startsWithVisits) doPostVisits(json)
         else sendNotFound()
-      cleanIfPostsDone()
+      cleanIfPostsDone(postsAmount)
       result
     }
 
@@ -143,7 +143,6 @@ class RapidoidHandler(userDao: UserDao,
       val entity = entityReader.read(json)
       maxIdCounter.getAndIncrement()
       postActor ! entity
-      cleanIfPostsDone()
       sendOk()
     }
 
@@ -307,8 +306,8 @@ class RapidoidHandler(userDao: UserDao,
   private val extractUserIdPattern = "/users/(\\d+)/visits".r
   private val extractLocationIdPattern = "/locations/(\\d+)/avg".r
 
-  private def cleanIfPostsDone() = {
-    if (posts.get() == maxPostsAmount) {
+  private def cleanIfPostsDone(postsAmount: Int) = {
+    if (postsAmount == maxPostsAmount) {
       logger.debug("End of phase 2")
       maxUserId = maxUserIdCounter.get()
       maxLocationId = maxLocationIdCounter.get()
