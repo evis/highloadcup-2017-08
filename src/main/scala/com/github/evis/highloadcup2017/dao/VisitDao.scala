@@ -26,10 +26,10 @@ class VisitDao(userDao: UserDao,
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits.update(visit.id, visit)
-    val maybeMap = userVisitsIndex(visit.visitedAt)
+    val maybeMap = userVisitsIndex(visit.user)
     val map = if (maybeMap != null) maybeMap else {
       val newMap = mutable.TreeMap[Int, Set[Int]]()
-      userVisitsIndex.update(visit.visitedAt, newMap)
+      userVisitsIndex.update(visit.user, newMap)
       newMap
     }
     map.update(visit.visitedAt,
@@ -73,8 +73,8 @@ class VisitDao(userDao: UserDao,
       }
       map.update(newTimestamp,
         map.get(newTimestamp) match {
-          case Some(s) => s + newTimestamp
-          case None => Set(newTimestamp)
+          case Some(s) => s + id
+          case None => Set(id)
         }
       )
     }
