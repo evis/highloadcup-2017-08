@@ -6,14 +6,13 @@ import java.time._
 import com.github.evis.highloadcup2017.api.JsonFormats
 import com.github.evis.highloadcup2017.model._
 import com.typesafe.scalalogging.StrictLogging
-import spray.json._
 
 import scala.collection.mutable
 import scala.math.BigDecimal.RoundingMode.HALF_UP
 
 class VisitDao(userDao: UserDao,
                locationDao: LocationDao,
-               generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
+               generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao[Visit] {
   private val visits = Array.fill[Visit](11000000)(null)
 
   // better to refactor with value types?
@@ -47,7 +46,7 @@ class VisitDao(userDao: UserDao,
     set.add(visit.id)
   }
 
-  def json(id: Int): Array[Byte] = visits(id).toJson.compactPrint.getBytes
+  def read(id: Int): Visit = visits(id)
 
   //noinspection UnitInMap
   def update(id: Int, update: VisitUpdate): Unit = {
@@ -97,9 +96,9 @@ class VisitDao(userDao: UserDao,
                  fromDate: Option[Int],
                  toDate: Option[Int],
                  country: Option[String],
-                 toDistance: Option[Int]): Array[Byte] = {
+                 toDistance: Option[Int]): Iterable[UserVisit] = {
     // optimize?
-    val filtered = Option(userVisitsIndex(user)).fold(Iterable[Array[Byte]]())(
+    Option(userVisitsIndex(user)).fold(Iterable[UserVisit]())(
       _.rangeImpl(fromDate, toDate).values.flatMap(
         _.map { visitId =>
           val visit = visits(visitId)
@@ -110,34 +109,13 @@ class VisitDao(userDao: UserDao,
             location.place,
             location.country,
             location.distance)
-        }.withFilter(userVisit =>
+        }.filter(userVisit =>
           toDistance.fold(true)(_ > userVisit.distance) &&
             country.fold(true)(_ == userVisit.country)
-        ).map(_.json)
+        )
       )
     )
-    // don't allocate each time?
-    val buffer = ByteBuffer.allocate(
-      filtered.map(_.length).sum // for jsons
-        + (if (filtered.nonEmpty) filtered.size - 1 else 0) // for commas
-        + jsonVisitsPrefix.length
-        + jsonVisitsPostfix.length
-    )
-    buffer.put(jsonVisitsPrefix)
-    if (filtered.nonEmpty) {
-      buffer.put(filtered.head)
-      filtered.tail.foreach { visit =>
-        buffer.put(comma)
-        buffer.put(visit)
-      }
-    }
-    buffer.put(jsonVisitsPostfix)
-    buffer.array()
   }
-
-  private val jsonVisitsPrefix = """{"visits":[""".getBytes
-  private val jsonVisitsPostfix = "]}".getBytes
-  private val comma = ','.toByte
 
   def locationAvg(location: Int,
                   fromDate: Option[Int],

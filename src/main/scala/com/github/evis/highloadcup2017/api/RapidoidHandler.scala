@@ -1,11 +1,12 @@
 package com.github.evis.highloadcup2017.api
 
 import java.net.URLDecoder
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import com.github.evis.highloadcup2017.dao.{Dao, LocationDao, UserDao, VisitDao}
-import com.github.evis.highloadcup2017.model.{Entity, EntityUpdate}
+import com.github.evis.highloadcup2017.model.{Entity, EntityUpdate, UserVisit}
 import com.typesafe.scalalogging.StrictLogging
 import org.rapidoid.buffer.Buf
 import org.rapidoid.bytes.BytesUtil
@@ -31,6 +32,9 @@ class RapidoidHandler(userDao: UserDao,
   extends AbstractHttpServer("Rapidoid", "", "", true) with StrictLogging with JsonFormats {
 
   override def handle(ctx: Channel, buf: Buf, helper: RapidoidHelper): HttpStatus = {
+    implicit val implicitCtx = ctx
+    implicit val implicitHelper = helper
+
     val startsWithUsers = startsWith(buf.bytes(), helper.path, Users, true)
     val startsWithLocations = startsWith(buf.bytes(), helper.path, Locations, true)
     val startsWithVisits = startsWith(buf.bytes(), helper.path, Visits, true)
@@ -74,7 +78,7 @@ class RapidoidHandler(userDao: UserDao,
       maxVisitId
       if (id <= maxUserId)
         try {
-          sendOk(visitDao.userVisits(
+          sendUserVisits(visitDao.userVisits(
             id,
             params.get("fromDate").map(_.toInt),
             params.get("toDate").map(_.toInt),
@@ -155,21 +159,56 @@ class RapidoidHandler(userDao: UserDao,
       } else sendNotFound()
     }
 
-    def doGetEntity(dao: Dao, prefix: Array[Byte], maxId: Int) =
+    def doGetEntity[T <: WithFiller](dao: Dao[T], prefix: Array[Byte], maxId: Int) =
       doGetEntityImpl(dao, getEntityId(prefix), maxId)
 
-    def doGetEntityImpl(dao: Dao, id: Int, maxId: Int) = {
+    def doGetEntityImpl[T <: WithFiller](dao: Dao[T], id: Int, maxId: Int) = {
       // it's volatile!
       //noinspection ScalaUselessExpression
       maxVisitId
       if (id <= maxId)
-        sendOk(dao.json(id))
+        sendByteOk(dao.read(id))
       else
         sendNotFound()
     }
 
     def sendOk(body: Array[Byte] = okBody) =
       ok(ctx, helper.isKeepAlive.value, body, APPLICATION_JSON)
+
+    def sendByteOk[T <: WithFiller](obj: T) = {
+      val buffer = threadBuffer.get()
+      obj.fill(buffer)
+      val length = buffer.position()
+      sendOkWithLength(buffer.array(), length)
+    }
+
+    def sendOkWithLength(body: Array[Byte], length: Int) = {
+      startResponse(ctx, helper.isKeepAlive.value)
+      ctx.write(CONTENT_TYPE_TXT)
+      ctx.write(APPLICATION_JSON.getBytes)
+      ctx.write(CR_LF)
+      HttpIO.INSTANCE.writeContentLengthHeader(ctx, length)
+      ctx.write(CR_LF)
+      ctx.write(body, 0, length)
+      DONE
+    }
+
+    def sendUserVisits(visits: Iterable[UserVisit]) = {
+      val jsons = visits.map(_.json)
+      // don't allocate each time?
+      val buffer = threadBuffer.get()
+      buffer.position(0)
+      buffer.put(jsonVisitsPrefix)
+      if (jsons.nonEmpty) {
+        buffer.put(jsons.head)
+        jsons.tail.foreach { json =>
+          buffer.put(comma)
+          buffer.put(json)
+        }
+      }
+      buffer.put(jsonVisitsPostfix)
+      sendOkWithLength(buffer.array(), buffer.position())
+    }
 
     def sendNotFound() =
       send(404)
@@ -259,6 +298,10 @@ class RapidoidHandler(userDao: UserDao,
   private val emptyBody = Array.emptyByteArray
   private val badRequest = fullResp(400, emptyBody)
 
+  private val jsonVisitsPrefix = """{"visits":[""".getBytes
+  private val jsonVisitsPostfix = "]}".getBytes
+  private val comma = ','.toByte
+
   private val Post = "POST".getBytes
 
   private val extractUserIdPattern = "/users/(\\d+)/visits".r
@@ -270,6 +313,7 @@ class RapidoidHandler(userDao: UserDao,
       maxUserId = maxUserIdCounter.get()
       maxLocationId = maxLocationIdCounter.get()
       maxVisitId = maxVisitIdCounter.get()
+      System.gc()
     }
   }
 
@@ -285,4 +329,8 @@ class RapidoidHandler(userDao: UserDao,
   private val posts = new AtomicInteger()
 
   private val maxPostsAmount = if (isRateRun) 40000 else 3000
+
+  private val threadBuffer = new ThreadLocal[ByteBuffer]() {
+    override def initialValue(): ByteBuffer = ByteBuffer.allocate(65536)
+  }
 }

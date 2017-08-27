@@ -1,5 +1,7 @@
 package com.github.evis.highloadcup2017.dao
 
-trait Dao {
-  def json(id: Int): Array[Byte]
+import com.github.evis.highloadcup2017.api.WithFiller
+
+trait Dao[T <: WithFiller] {
+  def read(id: Int): T
 }

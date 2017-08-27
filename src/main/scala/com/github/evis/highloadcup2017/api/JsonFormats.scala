@@ -1,6 +1,6 @@
 package com.github.evis.highloadcup2017.api
 
-import com.github.evis.highloadcup2017.model.{Location, LocationUpdate, User, UserUpdate, Visit, VisitUpdate}
+import com.github.evis.highloadcup2017.model._
 import spray.json._
 
 trait JsonFormats extends DefaultJsonProtocol {
@@ -8,7 +8,7 @@ trait JsonFormats extends DefaultJsonProtocol {
   implicit val userFormat: JsonFormat[User] = jsonFormat(User.apply,
     "id", "email", "first_name", "last_name", "gender", "birth_date")
 
-  implicit val locationFormat: JsonFormat[Location] = jsonFormat5(Location)
+  implicit val locationFormat: JsonFormat[Location] = jsonFormat5(Location.apply)
 
   implicit val visitFormat: JsonFormat[Visit] = jsonFormat(Visit.apply,
     "id", "location", "user", "visited_at", "mark")
