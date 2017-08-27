@@ -87,7 +87,7 @@ class VisitDao(userDao: UserDao,
     val maybeSet = locationVisits(newLocationId)
     val set = if (maybeSet != null) maybeSet else {
       val newSet = mutable.Set[Int]()
-      locationVisits.update(visit.location, newSet)
+      locationVisits.update(newLocationId, newSet)
       newSet
     }
     set.add(id)
