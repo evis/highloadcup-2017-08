@@ -29,17 +29,17 @@ case class User(id: Int,
     import User._
     buffer.position(0)
     buffer.put(Id)
-    buffer.put(id.toString.getBytes)
+    putInt(id, buffer)
     buffer.put(Email)
-    buffer.put(email.getBytes)
+    putString(email, buffer)
     buffer.put(FirstName)
-    buffer.put(firstName.getBytes)
+    putString(firstName, buffer)
     buffer.put(LastName)
-    buffer.put(lastName.getBytes)
+    putString(lastName, buffer)
     buffer.put(Gender)
     buffer.put(gender.toByte)
     buffer.put(BirthDate)
-    buffer.put(birthDate.toString.getBytes)
+    putInt(birthDate, buffer)
     buffer.put(End)
   }
 }

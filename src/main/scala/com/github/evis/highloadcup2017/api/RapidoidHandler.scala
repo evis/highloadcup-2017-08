@@ -193,16 +193,14 @@ class RapidoidHandler(userDao: UserDao,
     }
 
     def sendUserVisits(visits: Iterable[UserVisit]) = {
-      val jsons = visits.map(_.json)
-      // don't allocate each time?
       val buffer = threadBuffer.get()
       buffer.position(0)
       buffer.put(jsonVisitsPrefix)
-      if (jsons.nonEmpty) {
-        buffer.put(jsons.head)
-        jsons.tail.foreach { json =>
+      if (visits.nonEmpty) {
+        visits.head.fill(buffer)
+        visits.tail.foreach { visit =>
           buffer.put(comma)
-          buffer.put(json)
+          visit.fill(buffer)
         }
       }
       buffer.put(jsonVisitsPostfix)

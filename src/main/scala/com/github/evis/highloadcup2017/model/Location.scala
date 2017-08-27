@@ -21,15 +21,15 @@ case class Location(id: Int,
     import Location._
     buffer.position(0)
     buffer.put(Id)
-    buffer.put(id.toString.getBytes)
+    putInt(id, buffer)
     buffer.put(Place)
-    buffer.put(place.getBytes)
+    putString(place, buffer)
     buffer.put(Country)
-    buffer.put(country.getBytes)
+    putString(country, buffer)
     buffer.put(City)
-    buffer.put(city.getBytes)
+    putString(city, buffer)
     buffer.put(Distance)
-    buffer.put(distance.toString.getBytes)
+    putInt(distance, buffer)
     buffer.put(End)
   }
 }

@@ -22,15 +22,15 @@ case class Visit(id: Int,
     import Visit._
     buffer.position(0)
     buffer.put(Id)
-    buffer.put(id.toString.getBytes)
+    putInt(id, buffer)
     buffer.put(Visit.Location)
-    buffer.put(location.toString.getBytes)
+    putInt(location, buffer)
     buffer.put(Visit.User)
-    buffer.put(user.toString.getBytes)
+    putInt(user, buffer)
     buffer.put(VisitedAt)
-    buffer.put(visitedAt.toString.getBytes)
+    putInt(visitedAt, buffer)
     buffer.put(Mark)
-    buffer.put(mark.toString.getBytes)
+    putInt(mark, buffer)
     buffer.put(End)
   }
 }
