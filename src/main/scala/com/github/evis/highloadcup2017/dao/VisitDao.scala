@@ -21,7 +21,7 @@ class VisitDao(userDao: UserDao,
   private val userVisitsIndex =
     Array.fill[mutable.TreeMap[Int, Set[Int]]](1100000)(null)
   // location id -> visit_id
-  private val locationVisits = mutable.Map.apply[Int, mutable.Set[Int]]()
+  private val locationVisits = Array.fill[mutable.Set[Int]](800000)(null)
 
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
@@ -34,11 +34,17 @@ class VisitDao(userDao: UserDao,
     }
     map.update(visit.visitedAt,
       map.get(visit.visitedAt) match {
-        case Some(set) => set + visit.id
+        case Some(s) => s + visit.id
         case None => Set(visit.id)
       }
     )
-    locationVisits.getOrElseUpdate(visit.location, mutable.Set()).add(visit.id)
+    val maybeSet = locationVisits(visit.location)
+    val set = if (maybeSet != null) maybeSet else {
+      val newSet = mutable.Set[Int]()
+      locationVisits.update(visit.location, newSet)
+      newSet
+    }
+    set.add(visit.id)
   }
 
   def json(id: Int): Array[Byte] = visits(id).toJson.compactPrint.getBytes
@@ -67,7 +73,7 @@ class VisitDao(userDao: UserDao,
       }
       map.update(newTimestamp,
         map.get(newTimestamp) match {
-          case Some(set) => set + newTimestamp
+          case Some(s) => s + newTimestamp
           case None => Set(newTimestamp)
         }
       )
@@ -78,7 +84,13 @@ class VisitDao(userDao: UserDao,
     if (oldLocationId != newLocationId) {
       oldLocationVisits.remove(id)
     }
-    locationVisits.getOrElseUpdate(newLocationId, mutable.Set()).add(id)
+    val maybeSet = locationVisits(newLocationId)
+    val set = if (maybeSet != null) maybeSet else {
+      val newSet = mutable.Set[Int]()
+      locationVisits.update(visit.location, newSet)
+      newSet
+    }
+    set.add(id)
   }
 
   def userVisits(user: Int,
@@ -133,7 +145,7 @@ class VisitDao(userDao: UserDao,
                   fromAge: Option[Int],
                   toAge: Option[Int],
                   gender: Option[Char]): Array[Byte] = {
-    val found = locationVisits.get(location).fold(Seq[Int]())(
+    val found = Option(locationVisits(location)).fold(Seq[Int]())(
       _.toSeq.map { visitId =>
         val visit = visits(visitId)
         // proper None handling?
