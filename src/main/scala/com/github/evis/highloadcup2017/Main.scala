@@ -46,4 +46,6 @@ object Main extends App with StrictLogging {
   new RapidoidHandler(
     userDao, locationDao, visitDao, postActor, maxUserId, maxLocationId, maxVisitId, isRateRun
   ).listen(port)
+
+  System.gc()
 }
