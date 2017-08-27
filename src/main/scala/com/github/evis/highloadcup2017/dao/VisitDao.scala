@@ -14,7 +14,7 @@ import scala.math.BigDecimal.RoundingMode.HALF_UP
 class VisitDao(userDao: UserDao,
                locationDao: LocationDao,
                generationDateTime: LocalDateTime) extends JsonFormats with StrictLogging with Dao {
-  private val visits = mutable.HashMap[Int, Visit]()
+  private val visits = Array.fill[Visit](11000000)(null)
 
   // better to refactor with value types?
   // user_id -> visited_at -> visit_id
@@ -24,44 +24,42 @@ class VisitDao(userDao: UserDao,
 
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
-    visits += visit.id -> visit
+    visits.update(visit.id, visit)
     userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
       .getOrElseUpdate(visit.visitedAt, mutable.Set())
       .add(visit.id)
     locationVisits.getOrElseUpdate(visit.location, mutable.Set()).add(visit.id)
   }
 
-  def read(id: Int): Option[Visit] = visits.get(id)
-
   def json(id: Int): Array[Byte] = visits(id).toJson.compactPrint.getBytes
 
   //noinspection UnitInMap
-  def update(id: Int, update: VisitUpdate): Option[Unit] =
-    read(id).map { visit =>
-      val updated = visit `with` update
-      visits.put(id, updated)
-      // does this method need optimizition?
-      val oldUserId = visit.user
-      val oldTimestamp = visit.visitedAt
-      val oldUserVisits = userVisitsIndex(oldUserId)(oldTimestamp)
-      val oldUserVisit = oldUserVisits.find(_ == id)
-      val newUserId = update.user.getOrElse(oldUserId)
-      val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
-      oldUserVisit.foreach { _ =>
-        if (oldUserId != newUserId || oldTimestamp != newTimestamp) {
-          oldUserVisits.remove(id)
-        }
-        userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
-          .getOrElseUpdate(newTimestamp, mutable.Set()).add(id)
+  def update(id: Int, update: VisitUpdate): Unit = {
+    val visit = visits(id)
+    val updated = visit `with` update
+    visits.update(id, updated)
+    // does this method need optimizition?
+    val oldUserId = visit.user
+    val oldTimestamp = visit.visitedAt
+    val oldUserVisits = userVisitsIndex(oldUserId)(oldTimestamp)
+    val oldUserVisit = oldUserVisits.find(_ == id)
+    val newUserId = update.user.getOrElse(oldUserId)
+    val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
+    oldUserVisit.foreach { _ =>
+      if (oldUserId != newUserId || oldTimestamp != newTimestamp) {
+        oldUserVisits.remove(id)
       }
-      val oldLocationId = visit.location
-      val oldLocationVisits = locationVisits(oldLocationId)
-      val newLocationId = update.location.getOrElse(oldLocationId)
-      if (oldLocationId != newLocationId) {
-        oldLocationVisits.remove(id)
-      }
-      locationVisits.getOrElseUpdate(newLocationId, mutable.Set()).add(id)
+      userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
+        .getOrElseUpdate(newTimestamp, mutable.Set()).add(id)
     }
+    val oldLocationId = visit.location
+    val oldLocationVisits = locationVisits(oldLocationId)
+    val newLocationId = update.location.getOrElse(oldLocationId)
+    if (oldLocationId != newLocationId) {
+      oldLocationVisits.remove(id)
+    }
+    locationVisits.getOrElseUpdate(newLocationId, mutable.Set()).add(id)
+  }
 
   def userVisits(user: Int,
                  fromDate: Option[Int],
@@ -73,10 +71,7 @@ class VisitDao(userDao: UserDao,
       _.rangeImpl(fromDate, toDate).values.flatMap(
         _.map { visitId =>
           val visit = visits(visitId)
-          val location = locationDao.read(visit.location).getOrElse(
-            // proper None handling?
-            deserializationError("")
-          )
+          val location = locationDao.read(visit.location)
           UserVisit(
             visit.mark,
             visit.visitedAt,
@@ -122,7 +117,7 @@ class VisitDao(userDao: UserDao,
       _.toSeq.map { visitId =>
         val visit = visits(visitId)
         // proper None handling?
-        val user = userDao.read(visit.user).getOrElse(deserializationError(""))
+        val user = userDao.read(visit.user)
         LocationVisit(
           visit.mark,
           visit.visitedAt,
