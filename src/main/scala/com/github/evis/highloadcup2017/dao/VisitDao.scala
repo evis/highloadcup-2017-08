@@ -18,16 +18,26 @@ class VisitDao(userDao: UserDao,
 
   // better to refactor with value types?
   // user_id -> visited_at -> visit_id
-  private val userVisitsIndex = mutable.Map.apply[Int, mutable.TreeMap[Int, mutable.Set[Int]]]()
+  private val userVisitsIndex =
+    Array.fill[mutable.TreeMap[Int, Set[Int]]](1100000)(null)
   // location id -> visit_id
   private val locationVisits = mutable.Map.apply[Int, mutable.Set[Int]]()
 
   def create(visit: Visit): Unit = {
     // should put visit if location or user not found?
     visits.update(visit.id, visit)
-    userVisitsIndex.getOrElseUpdate(visit.user, mutable.TreeMap())
-      .getOrElseUpdate(visit.visitedAt, mutable.Set())
-      .add(visit.id)
+    val maybeMap = userVisitsIndex(visit.visitedAt)
+    val map = if (maybeMap != null) maybeMap else {
+      val newMap = mutable.TreeMap[Int, Set[Int]]()
+      userVisitsIndex.update(visit.visitedAt, newMap)
+      newMap
+    }
+    map.update(visit.visitedAt,
+      map.get(visit.visitedAt) match {
+        case Some(set) => set + visit.id
+        case None => Set(visit.id)
+      }
+    )
     locationVisits.getOrElseUpdate(visit.location, mutable.Set()).add(visit.id)
   }
 
@@ -47,10 +57,20 @@ class VisitDao(userDao: UserDao,
     val newTimestamp = update.visitedAt.getOrElse(oldTimestamp)
     oldUserVisit.foreach { _ =>
       if (oldUserId != newUserId || oldTimestamp != newTimestamp) {
-        oldUserVisits.remove(id)
+        userVisitsIndex(oldUserId).update(oldTimestamp, oldUserVisits - id)
       }
-      userVisitsIndex.getOrElseUpdate(newUserId, mutable.TreeMap())
-        .getOrElseUpdate(newTimestamp, mutable.Set()).add(id)
+      val maybeMap = userVisitsIndex(newUserId)
+      val map = if (maybeMap != null) maybeMap else {
+        val newMap = mutable.TreeMap[Int, Set[Int]]()
+        userVisitsIndex.update(newUserId, newMap)
+        newMap
+      }
+      map.update(newTimestamp,
+        map.get(newTimestamp) match {
+          case Some(set) => set + newTimestamp
+          case None => Set(newTimestamp)
+        }
+      )
     }
     val oldLocationId = visit.location
     val oldLocationVisits = locationVisits(oldLocationId)
@@ -67,7 +87,7 @@ class VisitDao(userDao: UserDao,
                  country: Option[String],
                  toDistance: Option[Int]): Array[Byte] = {
     // optimize?
-    val filtered = userVisitsIndex.get(user).fold(Iterable[Array[Byte]]())(
+    val filtered = Option(userVisitsIndex(user)).fold(Iterable[Array[Byte]]())(
       _.rangeImpl(fromDate, toDate).values.flatMap(
         _.map { visitId =>
           val visit = visits(visitId)
