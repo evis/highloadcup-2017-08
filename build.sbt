@@ -39,6 +39,8 @@ dockerfile in docker := {
       "-Xmn512m",
       "-XX:MaxGCPauseMillis=100",
       "-Djava.lang.Integer.IntegerCache.high=11000000",
+      "-XX:+PrintGCDetails",
+      "-XX:+PrintGCTimeStamps",
       "-cp", classpathString, mainclass, "80")
   }
 }
