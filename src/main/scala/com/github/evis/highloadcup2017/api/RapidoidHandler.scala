@@ -302,8 +302,6 @@ class RapidoidHandler(userDao: UserDao,
   private val Visits = "/visits/".getBytes
 
   private val okBody = "{}".getBytes
-  private val emptyBody = Array.emptyByteArray
-  private val badRequest = fullResp(400, emptyBody)
 
   private val jsonVisitsPrefix = """{"visits":[""".getBytes
   private val jsonVisitsPostfix = "]}".getBytes
