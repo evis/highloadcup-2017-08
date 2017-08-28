@@ -148,9 +148,10 @@ class RapidoidHandler(userDao: UserDao,
                                     entityReader: JsonReader[T],
                                     maxIdCounter: AtomicInteger) = {
       val entity = entityReader.read(json)
+      val result = sendOk()
       maxIdCounter.getAndIncrement()
       postActor ! entity
-      sendOk()
+      result
     }
 
     def doUpdateEntity[U <: EntityUpdate](json: JsValue,
@@ -161,8 +162,9 @@ class RapidoidHandler(userDao: UserDao,
       val update = updateReader.read(json)
       val id = getEntityId(prefix, path)
       if (maxIdCounter.get() >= id) {
+        val result = sendOk()
         postActor ! (id, update)
-        sendOk()
+        result
       } else sendNotFound()
     }
 
