@@ -39,8 +39,8 @@ class RapidoidHandler(userDao: UserDao,
     val startsWithLocations = startsWith(buf.bytes(), helper.path, Locations, true)
     val startsWithVisits = startsWith(buf.bytes(), helper.path, Visits, true)
 
-    val path = BytesUtil.get(buf.bytes(), helper.path)
-    val body = BytesUtil.get(buf.bytes(), helper.body)
+    //noinspection AccessorLikeMethodIsEmptyParen
+    def getPath() = BytesUtil.get(buf.bytes(), helper.path)
 
     def doGet() =
       if (startsWithUsers) doGetUsers()
@@ -50,6 +50,7 @@ class RapidoidHandler(userDao: UserDao,
 
     def doPost() = {
       val postsAmount = posts.incrementAndGet()
+      val body = BytesUtil.get(buf.bytes(), helper.body)
       val json = body.parseJson
       val result =
         if (startsWithUsers) doPostUsers(json)
@@ -60,18 +61,22 @@ class RapidoidHandler(userDao: UserDao,
       result
     }
 
-    def doGetUsers() =
-      if (path.endsWith("/visits")) doGetUserVisits()
-      else doGetEntity(userDao, Users, maxUserId)
+    def doGetUsers() = {
+      val path = getPath()
+      if (path.endsWith("/visits")) doGetUserVisits(path)
+      else doGetEntity(userDao, Users, maxUserId, path)
+    }
 
-    def doGetLocations() =
-      if (path.endsWith("/avg")) doGetLocationAvg()
-      else doGetEntity(locationDao, Locations, maxLocationId)
+    def doGetLocations() = {
+      val path = getPath()
+      if (path.endsWith("/avg")) doGetLocationAvg(path)
+      else doGetEntity(locationDao, Locations, maxLocationId, path)
+    }
 
-    def doGetVisits() = doGetEntity(visitDao, Visits, maxVisitId)
+    def doGetVisits() = doGetEntity(visitDao, Visits, maxVisitId, getPath())
 
-    def doGetUserVisits() = {
-      val id = extractUserId
+    def doGetUserVisits(path: String) = {
+      val id = extractUserId(path)
       val params = extractParams
       // it's volatile!
       //noinspection ScalaUselessExpression
@@ -91,8 +96,8 @@ class RapidoidHandler(userDao: UserDao,
       else sendNotFound()
     }
 
-    def doGetLocationAvg() = {
-      val id = extractLocationId
+    def doGetLocationAvg(path: String) = {
+      val id = extractLocationId(path)
       val params = extractParams
       // it's volatile!
       //noinspection ScalaUselessExpression
@@ -131,11 +136,13 @@ class RapidoidHandler(userDao: UserDao,
                                                                entityReader: JsonReader[E],
                                                                updateReader: JsonReader[U],
                                                                prefix: Array[Byte],
-                                                               maxIdCounter: AtomicInteger) =
+                                                               maxIdCounter: AtomicInteger) = {
+      val path = getPath()
       if (path.endsWith("/new"))
         doCreateEntity(json, entityReader, maxIdCounter)
       else
-        doUpdateEntity(json, updateReader, prefix, maxIdCounter)
+        doUpdateEntity(json, updateReader, prefix, maxIdCounter, path)
+    }
 
     def doCreateEntity[T <: Entity](json: JsValue,
                                     entityReader: JsonReader[T],
@@ -149,17 +156,18 @@ class RapidoidHandler(userDao: UserDao,
     def doUpdateEntity[U <: EntityUpdate](json: JsValue,
                                           updateReader: JsonReader[U],
                                           prefix: Array[Byte],
-                                          maxIdCounter: AtomicInteger) = {
+                                          maxIdCounter: AtomicInteger,
+                                          path: String) = {
       val update = updateReader.read(json)
-      val id = getEntityId(prefix)
+      val id = getEntityId(prefix, path)
       if (maxIdCounter.get() >= id) {
         postActor ! (id, update)
         sendOk()
       } else sendNotFound()
     }
 
-    def doGetEntity[T <: WithFiller](dao: Dao[T], prefix: Array[Byte], maxId: Int) =
-      doGetEntityImpl(dao, getEntityId(prefix), maxId)
+    def doGetEntity[T <: WithFiller](dao: Dao[T], prefix: Array[Byte], maxId: Int, path: String) =
+      doGetEntityImpl(dao, getEntityId(prefix, path), maxId)
 
     def doGetEntityImpl[T <: WithFiller](dao: Dao[T], id: Int, maxId: Int) = {
       // it's volatile!
@@ -220,14 +228,14 @@ class RapidoidHandler(userDao: UserDao,
       DONE
     }
 
-    def getEntityId(prefix: Array[Byte]) = path.substring(prefix.length).toInt
+    def getEntityId(prefix: Array[Byte], path: String) = path.substring(prefix.length).toInt
 
-    def extractUserId = path match {
+    def extractUserId(path: String) = path match {
       case extractUserIdPattern(idStr) => idStr.toInt
       case _ => -1
     }
 
-    def extractLocationId = path match {
+    def extractLocationId(path: String) = path match {
       case extractLocationIdPattern(idStr) => idStr.toInt
       case _ => -1
     }
