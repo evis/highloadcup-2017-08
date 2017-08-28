@@ -243,8 +243,8 @@ class RapidoidHandler(userDao: UserDao,
     }
 
     def extractParams = {
-      var keyBuilder = new StringBuilder
-      var valueBuilder = new StringBuilder
+      val keyBuilder = new StringBuilder
+      val valueBuilder = new StringBuilder
       var beforeQM = true
       var beforeEQ = true
       val uri = URLDecoder.decode(BytesUtil.get(buf.bytes(), helper.uri), "UTF-8")
@@ -270,8 +270,8 @@ class RapidoidHandler(userDao: UserDao,
               beforeEQ = true
               val key = keyBuilder.toString()
               val value = valueBuilder.toString()
-              keyBuilder = new StringBuilder
-              valueBuilder = new StringBuilder
+              keyBuilder.setLength(0)
+              valueBuilder.setLength(0)
               acc + (key -> value)
             } else {
               valueBuilder.append(c)
