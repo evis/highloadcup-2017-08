@@ -25,7 +25,7 @@ dockerfile in docker := {
   val classpathString = classpath.files.map("/app/" + _.getName).mkString(":") + ":" + jarTarget
   new Dockerfile {
     // Base image
-    from("java")
+    from("openjdk:9")
     // Add all files on the classpath
     add(classpath.files, "/app/")
     // Add the JAR file
@@ -34,13 +34,19 @@ dockerfile in docker := {
     expose(80)
     // On launch run Java with the classpath and the main class
     entryPoint("java",
-      "-XX:+UseG1GC",
-      "-Xmx3g",
-      "-Xmn512m",
-      "-XX:MaxGCPauseMillis=100",
+      "-XX:+UseParallelGC",
+      "-Xmx3744m",
+      "-Xms3744m",
+      "-XX:NewSize=1300m",
+      "-XX:MaxNewSize=1300m",
+      "-XX:MaxDirectMemorySize=256m",
+      "-XX:MaxMetaspaceSize=48m",
+      "-XX:CompressedClassSpaceSize=48m",
+      "-XX:+UnlockExperimentalVMOptions",
+      "-XX:+UseCGroupMemoryLimitForHeap",
       "-Djava.lang.Integer.IntegerCache.high=11000000",
-      "-XX:+PrintGCDetails",
-      "-XX:+PrintGCTimeStamps",
+      "-Xlog:gc*",
+      "--add-modules", "java.xml.bind",
       "-cp", classpathString, mainclass, "80")
   }
 }
