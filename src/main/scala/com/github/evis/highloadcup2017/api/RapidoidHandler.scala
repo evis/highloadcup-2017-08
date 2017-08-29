@@ -78,10 +78,7 @@ class RapidoidHandler(userDao: UserDao,
     def doGetUserVisits(path: String) = {
       val id = extractUserId(path)
       val params = extractParams
-      // it's volatile!
-      //noinspection ScalaUselessExpression
-      maxVisitId
-      if (id <= maxUserId)
+      if (id <= maxUserId.get())
         try {
           sendUserVisits(visitDao.userVisits(
             id,
@@ -99,10 +96,7 @@ class RapidoidHandler(userDao: UserDao,
     def doGetLocationAvg(path: String) = {
       val id = extractLocationId(path)
       val params = extractParams
-      // it's volatile!
-      //noinspection ScalaUselessExpression
-      maxVisitId
-      if (id <= maxLocationId)
+      if (id <= maxLocationId.get())
         try {
           sendOk(visitDao.locationAvg(
             id,
@@ -124,13 +118,13 @@ class RapidoidHandler(userDao: UserDao,
     }
 
     def doPostUsers(json: JsValue) =
-      doCreateOrUpdateEntity(json, userFormat, userUpdateReader, Users, maxUserIdCounter)
+      doCreateOrUpdateEntity(json, userFormat, userUpdateReader, Users, maxUserId)
 
     def doPostLocations(json: JsValue) =
-      doCreateOrUpdateEntity(json, locationFormat, locationUpdateReader, Locations, maxLocationIdCounter)
+      doCreateOrUpdateEntity(json, locationFormat, locationUpdateReader, Locations, maxLocationId)
 
     def doPostVisits(json: JsValue) =
-      doCreateOrUpdateEntity(json, visitFormat, visitUpdateReader, Visits, maxVisitIdCounter)
+      doCreateOrUpdateEntity(json, visitFormat, visitUpdateReader, Visits, maxVisitId)
 
     def doCreateOrUpdateEntity[E <: Entity, U <: EntityUpdate](json: JsValue,
                                                                entityReader: JsonReader[E],
@@ -168,14 +162,11 @@ class RapidoidHandler(userDao: UserDao,
       } else sendNotFound()
     }
 
-    def doGetEntity[T <: WithFiller](dao: Dao[T], prefix: Array[Byte], maxId: Int, path: String) =
+    def doGetEntity[T <: WithFiller](dao: Dao[T], prefix: Array[Byte], maxId: AtomicInteger, path: String) =
       doGetEntityImpl(dao, getEntityId(prefix, path), maxId)
 
-    def doGetEntityImpl[T <: WithFiller](dao: Dao[T], id: Int, maxId: Int) = {
-      // it's volatile!
-      //noinspection ScalaUselessExpression
-      maxVisitId
-      if (id <= maxId)
+    def doGetEntityImpl[T <: WithFiller](dao: Dao[T], id: Int, maxId: AtomicInteger) = {
+      if (id <= maxId.get())
         sendByteOk(dao.read(id))
       else
         sendNotFound()
@@ -315,21 +306,13 @@ class RapidoidHandler(userDao: UserDao,
   private def cleanIfPostsDone(postsAmount: Int) = {
     if (postsAmount == maxPostsAmount) {
       logger.debug("End of phase 2")
-      maxUserId = maxUserIdCounter.get()
-      maxLocationId = maxLocationIdCounter.get()
-      maxVisitId = maxVisitIdCounter.get()
       System.gc()
     }
   }
 
-  private val maxUserIdCounter = new AtomicInteger(initMaxUserId)
-  private val maxLocationIdCounter = new AtomicInteger(initMaxLocationId)
-  private val maxVisitIdCounter = new AtomicInteger(initMaxVisitId)
-
-  private var maxUserId = initMaxUserId
-  private var maxLocationId = initMaxLocationId
-  // it's volatile, so, we will read it every time we want to read maxUserId or maxLocationId
-  @volatile private var maxVisitId = initMaxVisitId
+  private val maxUserId = new AtomicInteger(initMaxUserId)
+  private val maxLocationId = new AtomicInteger(initMaxLocationId)
+  private val maxVisitId = new AtomicInteger(initMaxVisitId)
 
   private val posts = new AtomicInteger()
 
