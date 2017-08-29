@@ -35,9 +35,9 @@ class RapidoidHandler(userDao: UserDao,
     implicit val implicitCtx = ctx
     implicit val implicitHelper = helper
 
-    val startsWithUsers = startsWith(buf.bytes(), helper.path, Users, true)
-    val startsWithLocations = startsWith(buf.bytes(), helper.path, Locations, true)
-    val startsWithVisits = startsWith(buf.bytes(), helper.path, Visits, true)
+    def startsWithUsers = startsWith(buf.bytes(), helper.path, Users, true)
+    def startsWithLocations = startsWith(buf.bytes(), helper.path, Locations, true)
+    def startsWithVisits = startsWith(buf.bytes(), helper.path, Visits, true)
 
     //noinspection AccessorLikeMethodIsEmptyParen
     def getPath() = BytesUtil.get(buf.bytes(), helper.path)
