@@ -1,0 +1,3 @@
+Disclaimer: there is a lot of non-idiomatic Scala code, mostly due to memory constraints.
+I tried to avoid some high-memory consumption immutable data structures, where that was critical.
+Also, there are some really dirty hacks to reduce memory consumption. :D
